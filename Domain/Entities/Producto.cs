@@ -7,7 +7,7 @@ namespace Domain.Entities
         public string Nombre { get; set; } = string.Empty;
         public string? Descripcion { get; set; }
         
-        // Relación uno a muchos con Lotes
-        public ICollection<Lote> Lotes { get; set; } = new List<Lote>();
+        // Relación con Lotes
+        public List<Lote> Lotes { get; set; } = new List<Lote>();
     }
 }

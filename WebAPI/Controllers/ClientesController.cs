@@ -1,7 +1,8 @@
+using Domain.Entities;
+using Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Infrastructure.Data;
-using Domain.Entities;
+using System.Text.RegularExpressions;
 
 namespace WebAPI.Controllers
 {
@@ -39,27 +40,36 @@ namespace WebAPI.Controllers
 
             if (cliente == null)
             {
-                return NotFound();
+                return NotFound(new { message = "Cliente no encontrado" });
             }
 
-            return Ok(cliente);
+            return cliente;
         }
 
         // POST: api/clientes
         [HttpPost]
         public async Task<ActionResult<Cliente>> PostCliente(Cliente cliente)
         {
-            try
+            // Validaciones del SRI
+            var validationResult = ValidarClienteSRI(cliente);
+            if (!validationResult.IsValid)
             {
-                _context.Clientes.Add(cliente);
-                await _context.SaveChangesAsync();
+                return BadRequest(new { message = validationResult.ErrorMessage });
+            }
 
-                return CreatedAtAction(nameof(GetCliente), new { id = cliente.Id }, cliente);
-            }
-            catch (Exception ex)
+            // Verificar si ya existe un cliente con la misma identificación
+            var existeCliente = await _context.Clientes
+                .AnyAsync(c => c.CedulaRuc == cliente.CedulaRuc && c.Id != cliente.Id);
+
+            if (existeCliente)
             {
-                return StatusCode(500, new { message = ex.Message, inner = ex.InnerException?.Message });
+                return BadRequest(new { message = "Ya existe un cliente con esta identificación" });
             }
+
+            _context.Clientes.Add(cliente);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetCliente), new { id = cliente.Id }, cliente);
         }
 
         // PUT: api/clientes/5
@@ -68,7 +78,23 @@ namespace WebAPI.Controllers
         {
             if (id != cliente.Id)
             {
-                return BadRequest();
+                return BadRequest(new { message = "El ID no coincide" });
+            }
+
+            // Validaciones del SRI
+            var validationResult = ValidarClienteSRI(cliente);
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(new { message = validationResult.ErrorMessage });
+            }
+
+            // Verificar si ya existe otro cliente con la misma identificación
+            var existeCliente = await _context.Clientes
+                .AnyAsync(c => c.CedulaRuc == cliente.CedulaRuc && c.Id != cliente.Id);
+
+            if (existeCliente)
+            {
+                return BadRequest(new { message = "Ya existe otro cliente con esta identificación" });
             }
 
             _context.Entry(cliente).State = EntityState.Modified;
@@ -81,7 +107,7 @@ namespace WebAPI.Controllers
             {
                 if (!ClienteExists(id))
                 {
-                    return NotFound();
+                    return NotFound(new { message = "Cliente no encontrado" });
                 }
                 else
                 {
@@ -99,7 +125,7 @@ namespace WebAPI.Controllers
             var cliente = await _context.Clientes.FindAsync(id);
             if (cliente == null)
             {
-                return NotFound();
+                return NotFound(new { message = "Cliente no encontrado" });
             }
 
             _context.Clientes.Remove(cliente);
@@ -111,6 +137,98 @@ namespace WebAPI.Controllers
         private bool ClienteExists(int id)
         {
             return _context.Clientes.Any(e => e.Id == id);
+        }
+
+        private ValidationResult ValidarClienteSRI(Cliente cliente)
+        {
+            // Validar Tipo de Identificación
+            if (string.IsNullOrWhiteSpace(cliente.TipoIdentificacion))
+            {
+                return new ValidationResult { IsValid = false, ErrorMessage = "El tipo de identificación es requerido" };
+            }
+
+            if (!new[] { "CEDULA", "RUC", "PASAPORTE" }.Contains(cliente.TipoIdentificacion))
+            {
+                return new ValidationResult { IsValid = false, ErrorMessage = "Tipo de identificación inválido" };
+            }
+
+            // Validar según tipo
+            switch (cliente.TipoIdentificacion)
+            {
+                case "CEDULA":
+                    if (string.IsNullOrWhiteSpace(cliente.CedulaRuc) || cliente.CedulaRuc.Length != 10 || !Regex.IsMatch(cliente.CedulaRuc, @"^\d{10}$"))
+                    {
+                        return new ValidationResult { IsValid = false, ErrorMessage = "La cédula debe tener exactamente 10 dígitos" };
+                    }
+                    if (!ValidarCedulaEcuatoriana(cliente.CedulaRuc))
+                    {
+                        return new ValidationResult { IsValid = false, ErrorMessage = "La cédula no es válida según el algoritmo del SRI" };
+                    }
+                    break;
+
+                case "RUC":
+                    if (string.IsNullOrWhiteSpace(cliente.CedulaRuc) || cliente.CedulaRuc.Length != 13 || !Regex.IsMatch(cliente.CedulaRuc, @"^\d{13}$"))
+                    {
+                        return new ValidationResult { IsValid = false, ErrorMessage = "El RUC debe tener exactamente 13 dígitos" };
+                    }
+                    if (!cliente.CedulaRuc.EndsWith("001"))
+                    {
+                        return new ValidationResult { IsValid = false, ErrorMessage = "El RUC debe terminar en 001" };
+                    }
+                    break;
+
+                case "PASAPORTE":
+                    if (string.IsNullOrWhiteSpace(cliente.CedulaRuc) || cliente.CedulaRuc.Length < 5 || cliente.CedulaRuc.Length > 20)
+                    {
+                        return new ValidationResult { IsValid = false, ErrorMessage = "El pasaporte debe tener entre 5 y 20 caracteres" };
+                    }
+                    break;
+            }
+
+            // Validar Teléfono
+            if (string.IsNullOrWhiteSpace(cliente.Telefono) || cliente.Telefono.Length != 10 || !Regex.IsMatch(cliente.Telefono, @"^\d{10}$"))
+            {
+                return new ValidationResult { IsValid = false, ErrorMessage = "El teléfono debe tener exactamente 10 dígitos" };
+            }
+
+            // Validar Dirección
+            if (string.IsNullOrWhiteSpace(cliente.Direccion))
+            {
+                return new ValidationResult { IsValid = false, ErrorMessage = "La dirección es obligatoria para facturación electrónica" };
+            }
+
+            // Validar Email
+            if (string.IsNullOrWhiteSpace(cliente.Correo) || !Regex.IsMatch(cliente.Correo, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+            {
+                return new ValidationResult { IsValid = false, ErrorMessage = "El correo electrónico no es válido" };
+            }
+
+            return new ValidationResult { IsValid = true };
+        }
+
+        private bool ValidarCedulaEcuatoriana(string cedula)
+        {
+            if (cedula.Length != 10) return false;
+
+            int[] coeficientes = { 2, 1, 2, 1, 2, 1, 2, 1, 2 };
+            int suma = 0;
+            int digitoVerificador = int.Parse(cedula[9].ToString());
+
+            for (int i = 0; i < 9; i++)
+            {
+                int digito = int.Parse(cedula[i].ToString()) * coeficientes[i];
+                if (digito > 9) digito -= 9;
+                suma += digito;
+            }
+
+            int resultado = suma % 10 == 0 ? 0 : 10 - (suma % 10);
+            return resultado == digitoVerificador;
+        }
+
+        private class ValidationResult
+        {
+            public bool IsValid { get; set; }
+            public string ErrorMessage { get; set; } = string.Empty;
         }
     }
 }
