@@ -1,28 +1,52 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Infrastructure.Data;
 using Domain.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace WebAPI.Controllers
 {
-    [ApiController]
     [Route("api/[controller]")]
+    [ApiController]
     public class AuthController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        public AuthController(ApplicationDbContext context) => _context = context;
+
+        public AuthController(ApplicationDbContext context)
+        {
+            _context = context;
+        }
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] Usuario usuario)
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            var user = await _context.Usuarios
-                .FirstOrDefaultAsync(u => u.NombreUsuario == usuario.NombreUsuario &&
-                                          u.Contrasena == usuario.Contrasena);
+            try
+            {
+                var usuario = await _context.Usuarios
+                    .FirstOrDefaultAsync(u => u.NombreUsuario == request.Username && u.Contraseña == request.Password);
 
-            if (user == null)
-                return Unauthorized("Credenciales incorrectas");
+                if (usuario == null)
+                {
+                    return Unauthorized(new { message = "Usuario o contraseña incorrectos" });
+                }
 
-            return Ok("Inicio de sesión exitoso");
+                return Ok(new
+                {
+                    id = usuario.Id,
+                    username = usuario.NombreUsuario,
+                    rol = usuario.Rol,
+                    message = "Login exitoso"
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
         }
+    }
+
+    public class LoginRequest
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
     }
 }
