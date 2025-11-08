@@ -8,5 +8,6 @@ namespace Domain.Entities
         public DateTime FechaIngreso { get; set; } // 👈 Para FIFO
         public int ProductoId { get; set; }
         public Producto Producto { get; set; } = null!;
+        public decimal Precio { get; set; } // 👈 Nuevo campo para precio por lote
     }
 }

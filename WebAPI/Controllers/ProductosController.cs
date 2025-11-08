@@ -15,7 +15,7 @@ namespace WebAPI.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            var productos = await _context.Productos.Include(p => p.Lotes).ToListAsync();
+            var productos = await _context.Productos.ToListAsync();
             return Ok(productos);
         }
 
