@@ -1,0 +1,64 @@
+@page "/login"
+@inject HttpClient Http
+@inject NavigationManager NavManager
+
+<h3 class="mb-4 text-center"><i class="fa-solid fa-lock me-2"></i>Inicio de Sesión</h3>
+
+<div class="card shadow p-4" style="max-width: 400px; margin:auto;">
+    <EditForm Model="@usuario" OnValidSubmit="IniciarSesion">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label">Usuario</label>
+            <InputText class="form-control" @bind-Value="usuario.NombreUsuario" required />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Contraseña</label>
+            <InputText class="form-control" @bind-Value="usuario.Contrasena" type="password" required />
+        </div>
+
+        <button class="btn btn-primary w-100" type="submit">Ingresar</button>
+    </EditForm>
+
+    @if (!string.IsNullOrEmpty(mensaje))
+    {
+        <div class="alert alert-info mt-3">@mensaje</div>
+    }
+</div>
+
+@code {
+    private Usuario usuario = new();
+    private string? mensaje;
+
+    private async Task IniciarSesion()
+    {
+        try
+        {
+            // Usa la base address configurada en Program.cs
+            var response = await Http.PostAsJsonAsync("api/auth/login", usuario);
+
+            if (response.IsSuccessStatusCode)
+            {
+                mensaje = "✅ Acceso concedido. Redirigiendo...";
+                await Task.Delay(1000);
+                NavManager.NavigateTo("/");
+            }
+            else
+            {
+                mensaje = "❌ Usuario o contraseña incorrectos.";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensaje = $"❌ Error al conectar con el servidor: {ex.Message}";
+        }
+    }
+
+    public class Usuario
+    {
+        public string NombreUsuario { get; set; } = string.Empty;
+        public string Contrasena { get; set; } = string.Empty;
+    }
+}

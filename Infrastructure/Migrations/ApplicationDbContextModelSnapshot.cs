@@ -342,17 +342,12 @@ namespace Infrastructure.Migrations
             modelBuilder.Entity("Domain.Entities.Lote", b =>
                 {
                     b.HasOne("Domain.Entities.Producto", "Producto")
-                        .WithMany("Lotes")
+                        .WithMany()
                         .HasForeignKey("ProductoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Producto");
-                });
-
-            modelBuilder.Entity("Domain.Entities.Producto", b =>
-                {
-                    b.Navigation("Lotes");
                 });
 #pragma warning restore 612, 618
         }
