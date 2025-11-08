@@ -1,8 +1,187 @@
 @page "/"
+@inject HttpClient Http
 
-<h3>Bienvenido al Sistema de Facturación Electrónica</h3>
-<p>Selecciona una opción del menú lateral para comenzar.</p>
+<PageTitle>Sistema de Facturación</PageTitle>
 
-<div class="alert alert-info mt-3">
-    <strong>💡 Consejo:</strong> Puedes navegar entre Clientes, Productos y Acceso usando el menú.
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-4">
+            <i class="fa-solid fa-chart-line"></i> Dashboard
+        </h1>
+        <p class="lead">Bienvenido al Sistema de Facturación Electrónica</p>
+    </div>
 </div>
+
+<div class="row g-4">
+    <div class="col-md-6 col-lg-3">
+        <div class="card text-white bg-primary shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-subtitle mb-2">Total Clientes</h6>
+                        <h2 class="card-title mb-0">@totalClientes</h2>
+                    </div>
+                    <div class="fs-1">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-primary bg-opacity-25">
+                <a href="/clientes" class="text-white text-decoration-none">
+                    Ver todos <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+        <div class="card text-white bg-success shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-subtitle mb-2">Total Productos</h6>
+                        <h2 class="card-title mb-0">@totalProductos</h2>
+                    </div>
+                    <div class="fs-1">
+                        <i class="fa-solid fa-boxes-stacked"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-success bg-opacity-25">
+                <a href="/productos" class="text-white text-decoration-none">
+                    Ver todos <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+        <div class="card text-white bg-info shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-subtitle mb-2">Stock Total</h6>
+                        <h2 class="card-title mb-0">@stockTotal</h2>
+                    </div>
+                    <div class="fs-1">
+                        <i class="fa-solid fa-warehouse"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-info bg-opacity-25">
+                <small class="text-white">Unidades disponibles</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+        <div class="card text-white bg-warning shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-subtitle mb-2">Lotes Activos</h6>
+                        <h2 class="card-title mb-0">@totalLotes</h2>
+                    </div>
+                    <div class="fs-1">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-warning bg-opacity-25">
+                <small class="text-white">Lotes registrados</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fa-solid fa-info-circle"></i> Accesos Rápidos</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    <a href="/clientes" class="list-group-item list-group-item-action">
+                        <i class="fa-solid fa-user-plus text-primary"></i> Registrar nuevo cliente
+                    </a>
+                    <a href="/productos" class="list-group-item list-group-item-action">
+                        <i class="fa-solid fa-box text-success"></i> Agregar producto
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fa-solid fa-lightbulb"></i> Estado del Sistema</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-2">
+                    <i class="fa-solid fa-check-circle text-success"></i> 
+                    Sistema operativo
+                </p>
+                <p class="mb-2">
+                    <i class="fa-solid fa-check-circle text-success"></i> 
+                    Base de datos conectada
+                </p>
+                <p class="mb-0">
+                    <i class="fa-solid fa-clock text-warning"></i> 
+                    Última actualización: @DateTime.Now.ToString("dd/MM/yyyy HH:mm")
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private int totalClientes = 0;
+    private int totalProductos = 0;
+    private int stockTotal = 0;
+    private int totalLotes = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarEstadisticas();
+    }
+
+    private async Task CargarEstadisticas()
+    {
+        try
+        {
+            var clientes = await Http.GetFromJsonAsync<List<ClienteDto>>("api/clientes");
+            var productos = await Http.GetFromJsonAsync<List<ProductoDto>>("api/productos");
+
+            totalClientes = clientes?.Count ?? 0;
+            totalProductos = productos?.Count ?? 0;
+            
+            if (productos != null)
+            {
+                totalLotes = productos.Sum(p => p.Lotes?.Count ?? 0);
+                stockTotal = productos.Sum(p => p.Lotes?.Sum(l => l.Cantidad) ?? 0);
+            }
+        }
+        catch (Exception)
+        {
+            // Si falla, los valores quedan en 0
+        }
+    }
+
+    private class ClienteDto
+    {
+        public int Id { get; set; }
+    }
+
+    private class ProductoDto
+    {
+        public int Id { get; set; }
+        public List<LoteDto>? Lotes { get; set; }
+    }
+
+    private class LoteDto
+    {
+        public int Cantidad { get; set; }
+    }
+}

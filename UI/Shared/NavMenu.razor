@@ -1,9 +1,51 @@
-<div class="sidebar">
-    <div class="nav-title">Facturación Electrónica</div>
-    <nav>
-        <NavLink href="/" class="nav-link" Match="NavLinkMatch.All">🏠 Inicio</NavLink>
-        <NavLink href="clientes" class="nav-link">👤 Clientes</NavLink>
-        <NavLink href="productos" class="nav-link">📦 Productos</NavLink>
-        <NavLink href="login" class="nav-link">🔐 Acceso</NavLink>
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">
+            <i class="fa-solid fa-file-invoice-dollar"></i> Sistema Facturación
+        </a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="oi oi-home" aria-hidden="true"></span> Inicio
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="clientes">
+                <i class="fa-solid fa-users"></i> Clientes
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="productos">
+                <i class="fa-solid fa-boxes-stacked"></i> Productos
+            </NavLink>
+        </div>
+
+        <hr class="text-white" />
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="login">
+                <i class="fa-solid fa-sign-out-alt"></i> Cerrar Sesión
+            </NavLink>
+        </div>
     </nav>
 </div>
+
+@code {
+    private bool collapseNavMenu = true;
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}
