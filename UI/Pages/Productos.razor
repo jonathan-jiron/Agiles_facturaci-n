@@ -1,0 +1,60 @@
+@page "/productos"
+@inject HttpClient Http
+
+<h3 class="mb-4"><i class="fa-solid fa-boxes-stacked me-2"></i>Gestión de Productos</h3>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <button class="btn btn-primary mb-3">
+            <i class="fa-solid fa-plus"></i> Nuevo Producto
+        </button>
+
+        @if (productos == null)
+        {
+            <p>Cargando productos...</p>
+        }
+        else if (!productos.Any())
+        {
+            <p>No hay productos registrados.</p>
+        }
+        else
+        {
+            <table class="table table-hover align-middle">
+                <thead class="table-primary">
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Precio</th>
+                        <th>Stock</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in productos)
+                    {
+                        <tr>
+                            <td>@p.Nombre</td>
+                            <td>@p.Precio.ToString("C")</td>
+                            <td>@p.Stock</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@code {
+    private List<Producto>? productos;
+
+    protected override async Task OnInitializedAsync()
+    {
+        productos = await Http.GetFromJsonAsync<List<Producto>>("api/productos");
+    }
+
+    public class Producto
+    {
+        public int Id { get; set; }
+        public string? Nombre { get; set; }
+        public decimal Precio { get; set; }
+        public int Stock { get; set; }
+    }
+}

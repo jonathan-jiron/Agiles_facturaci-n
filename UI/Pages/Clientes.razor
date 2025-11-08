@@ -1,0 +1,63 @@
+@page "/clientes"
+@inject HttpClient Http
+
+<h3 class="mb-4"><i class="fa-solid fa-users me-2"></i>Gestión de Clientes</h3>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <button class="btn btn-primary mb-3">
+            <i class="fa-solid fa-user-plus"></i> Nuevo Cliente
+        </button>
+
+        @if (clientes == null)
+        {
+            <p>Cargando clientes...</p>
+        }
+        else if (!clientes.Any())
+        {
+            <p>No hay clientes registrados.</p>
+        }
+        else
+        {
+            <table class="table table-hover align-middle">
+                <thead class="table-primary">
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Cédula / RUC</th>
+                        <th>Teléfono</th>
+                        <th>Correo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in clientes)
+                    {
+                        <tr>
+                            <td>@c.Nombre</td>
+                            <td>@c.CedulaRuc</td>
+                            <td>@c.Telefono</td>
+                            <td>@c.Correo</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@code {
+    private List<Cliente>? clientes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        clientes = await Http.GetFromJsonAsync<List<Cliente>>("api/clientes");
+    }
+
+    public class Cliente
+    {
+        public int Id { get; set; }
+        public string? Nombre { get; set; }
+        public string? CedulaRuc { get; set; }
+        public string? Telefono { get; set; }
+        public string? Correo { get; set; }
+    }
+}
