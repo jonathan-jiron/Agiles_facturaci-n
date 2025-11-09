@@ -1,51 +1,50 @@
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">
-            <i class="fa-solid fa-file-invoice-dollar"></i> Sistema Facturación
-        </a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-    </div>
-</div>
+@namespace UI.Shared
+@using Microsoft.AspNetCore.Components.Routing
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="oi oi-home" aria-hidden="true"></span> Inicio
-            </NavLink>
-        </div>
+<nav class="sidenav">
+  <div class="brand">
+    <div class="logo">FZ</div>
+    <span class="title">Facturación</span>
+  </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="clientes">
-                <i class="fa-solid fa-users"></i> Clientes
-            </NavLink>
-        </div>
+  <div class="menu">
+    <NavLink class="item" href="/" Match="NavLinkMatch.All">
+      <i class="fa-solid fa-gauge"></i>
+      <span>Dashboard</span>
+    </NavLink>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="productos">
-                <i class="fa-solid fa-boxes-stacked"></i> Productos
-            </NavLink>
-        </div>
+    <NavLink class="item" href="/clientes" Match="NavLinkMatch.Prefix">
+      <i class="fa-solid fa-users"></i>
+      <span>Clientes</span>
+    </NavLink>
 
-        <hr class="text-white" />
+    <NavLink class="item" href="/productos" Match="NavLinkMatch.Prefix">
+      <i class="fa-solid fa-box-open"></i>
+      <span>Productos</span>
+    </NavLink>
+  </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="login">
-                <i class="fa-solid fa-sign-out-alt"></i> Cerrar Sesión
-            </NavLink>
-        </div>
-    </nav>
-</div>
+  <div class="footer">
+    <small>v1.0</small>
+  </div>
+</nav>
 
-@code {
-    private bool collapseNavMenu = true;
-
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
-
-    private void ToggleNavMenu()
-    {
-        collapseNavMenu = !collapseNavMenu;
-    }
+<style>
+.sidenav{padding:1rem .85rem;height:100%;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:.7rem;margin:.25rem .25rem 1.1rem}
+.brand .logo{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff}
+.brand .title{color:#fff;font-weight:700;letter-spacing:.4px}
+.menu{display:flex;flex-direction:column;gap:.25rem}
+.item{display:flex;align-items:center;gap:.8rem;color:rgba(255,255,255,.85);text-decoration:none;
+  padding:.62rem .8rem;border-radius:.7rem;position:relative;transition:transform .12s,background .2s}
+.item i{width:28px;text-align:center}
+.item:hover{background:rgba(255,255,255,.12);color:#fff;transform:translateX(2px)}
+.item.active{background:rgba(255,255,255,.22);color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.item.active::before{
+  content:"";position:absolute;inset:0 auto 0 0;width:4px;border-radius:3px;
+  background:linear-gradient(180deg,#8fd3f4,#84fab0)
 }
+.footer{margin-top:auto;padding:.5rem .75rem;color:rgba(255,255,255,.7);font-size:.75rem}
+
+</style>

@@ -9,11 +9,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace Infrastructure.Migrations
+namespace Infrastructure.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251108184312_AgregarTipoIdentificacionCliente")]
-    partial class AgregarTipoIdentificacionCliente
+    [Migration("20251108230343_AddUniqueIndex_Usuario_Username")]
+    partial class AddUniqueIndex_Usuario_Username
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -394,16 +394,10 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Usuarios");
+                    b.HasIndex("Username")
+                        .IsUnique();
 
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            PasswordHash = "$2a$11$8z7kZqK5y3K0Wl8KqX5Y.eN7HgZ8xF2Q3R5T6Y7U8V9W0X1Y2Z3A4",
-                            Rol = "ADMIN",
-                            Username = "admin"
-                        });
+                    b.ToTable("Usuarios");
                 });
 
             modelBuilder.Entity("Domain.Entities.Lote", b =>

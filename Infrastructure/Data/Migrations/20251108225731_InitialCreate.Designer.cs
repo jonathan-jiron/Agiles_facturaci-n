@@ -4,16 +4,19 @@ using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace Infrastructure.Migrations
+namespace Infrastructure.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251108225731_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -392,15 +395,6 @@ namespace Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Usuarios");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            PasswordHash = "$2a$11$8z7kZqK5y3K0Wl8KqX5Y.eN7HgZ8xF2Q3R5T6Y7U8V9W0X1Y2Z3A4",
-                            Rol = "ADMIN",
-                            Username = "admin"
-                        });
                 });
 
             modelBuilder.Entity("Domain.Entities.Lote", b =>

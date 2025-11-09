@@ -1,62 +1,85 @@
-
 @page "/login"
-@inject HttpClient Http
+@layout EmptyLayout
+@using UI.Services
+@inject AuthService AuthService
 @inject NavigationManager Navigation
 
-<div class="login-container">
-    <h3>Iniciar Sesión</h3>
-    
-    <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
-        
-        <div class="form-group">
-            <label>Usuario:</label>
-            <InputText @bind-Value="loginModel.Username" class="form-control" />
+<div class="login-card">
+    <div class="login-card-body">
+        <div class="login-header text-center mb-4">
+            <div class="login-icon mb-3">
+                <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+            <h2 class="login-title mb-2">Sistema de Facturación</h2>
+            <p class="login-subtitle mb-0">Integración con SRI Ecuador</p>
         </div>
-        
-        <div class="form-group">
-            <label>Contraseña:</label>
-            <InputText type="password" @bind-Value="loginModel.Password" class="form-control" />
-        </div>
-        
+
         @if (!string.IsNullOrEmpty(errorMessage))
         {
-            <div class="alert alert-danger">@errorMessage</div>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                <strong>Error:</strong> @errorMessage
+                <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+            </div>
         }
-        
-        <button type="submit" class="btn btn-primary">Ingresar</button>
-    </EditForm>
+
+        <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">
+                    <i class="fas fa-user me-2"></i>Usuario
+                </label>
+                <InputText @bind-Value="loginModel.Username" class="form-control"
+                    placeholder="Ingrese su usuario" />
+                <ValidationMessage For="@(() => loginModel.Username)" class="text-danger small" />
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-semibold">
+                    <i class="fas fa-lock me-2"></i>Contraseña
+                </label>
+                <InputText @bind-Value="loginModel.Password" type="password" class="form-control"
+                    placeholder="Ingrese su contraseña" />
+                <ValidationMessage For="@(() => loginModel.Password)" class="text-danger small" />
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100" disabled="@isLoading">
+                @(isLoading ? "Ingresando..." : "Iniciar Sesión")
+            </button>
+        </EditForm>
+
+        <div class="login-footer mt-5 pt-4 border-top">
+            <div class="test-credentials text-center">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Credenciales de prueba:</strong><br />
+                Usuario: <code>admin</code> | Contraseña: <code>admin123</code>
+            </div>
+        </div>
+    </div>
 </div>
 
 @code {
-    private LoginModel loginModel = new LoginModel();
+    private LoginModel loginModel = new();
     private string errorMessage = string.Empty;
+    private bool isLoading = false;
 
     private async Task HandleLogin()
     {
-        try
-        {
-            var response = await Http.PostAsJsonAsync("api/auth/login", loginModel);
-            
-            if (response.IsSuccessStatusCode)
-            {
-                Navigation.NavigateTo("/");
-            }
-            else
-            {
-                errorMessage = "Usuario o contraseña incorrectos";
-            }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Error: {ex.Message}";
-        }
+        isLoading = true;
+        errorMessage = string.Empty;
+        var ok = await AuthService.LoginAsync(loginModel.Username, loginModel.Password);
+        isLoading = false;
+        if (ok) Navigation.NavigateTo("/clientes", forceLoad: true);
+        else errorMessage = "Usuario o contraseña incorrectos";
     }
 
     public class LoginModel
     {
+        [Required(ErrorMessage = "El usuario es requerido")]
         public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "La contraseña es requerida")]
         public string Password { get; set; } = string.Empty;
     }
 }

@@ -1,4 +1,5 @@
 @page "/clientes"
+@attribute [Authorize]
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
 @using System.ComponentModel.DataAnnotations
@@ -6,256 +7,256 @@
 
 <h3 class="mb-4"><i class="fa-solid fa-users me-2"></i>Gestión de Clientes</h3>
 
-<div class="card shadow-sm border-0 mb-4">
-    <div class="card-body">
-        <button class="btn btn-primary mb-3" @onclick="MostrarFormularioNuevo">
-            <i class="fa-solid fa-user-plus"></i> Nuevo Cliente
-        </button>
+<div class="page-container">
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <button class="btn btn-primary mb-3" @onclick="MostrarFormularioNuevo">
+                <i class="fa-solid fa-user-plus"></i> Nuevo Cliente
+            </button>
 
-        @if (mostrarFormulario)
-        {
-            <div class="card border-primary mb-3">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="fa-solid fa-id-card me-2"></i>
-                        @(clienteEditando.Id == 0 ? "Registrar Nuevo Cliente" : "Editar Cliente")
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <EditForm Model="@clienteEditando" OnValidSubmit="@GuardarCliente">
-                        <DataAnnotationsValidator />
-                        
-                        <!-- Sección: Identificación -->
-                        <div class="border-bottom pb-3 mb-3">
-                            <h6 class="text-primary">
-                                <i class="fa-solid fa-fingerprint me-2"></i>
-                                Identificación del Cliente
-                            </h6>
+            @if (mostrarFormulario)
+            {
+                <div class="card border-primary mb-3">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fa-solid fa-id-card me-2"></i>
+                            @(clienteEditando.Id == 0 ? "Registrar Nuevo Cliente" : "Editar Cliente")
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <EditForm Model="@clienteEditando" OnValidSubmit="@GuardarCliente">
+                            <DataAnnotationsValidator />
                             
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">
-                                        Tipo de Identificación <span class="text-danger">*</span>
-                                    </label>
-                                    <InputSelect @bind-Value="clienteEditando.TipoIdentificacion" class="form-select">
-                                        <option value="">Seleccione...</option>
-                                        <option value="CEDULA">Cédula (10 dígitos)</option>
-                                        <option value="RUC">RUC (13 dígitos)</option>
-                                        <option value="PASAPORTE">Pasaporte</option>
-                                    </InputSelect>
-                                    <ValidationMessage For="@(() => clienteEditando.TipoIdentificacion)" class="text-danger small" />
-                                </div>
+                            <!-- Sección: Identificación -->
+                            <div class="border-bottom pb-3 mb-3">
+                                <h6 class="text-primary">
+                                    <i class="fa-solid fa-fingerprint me-2"></i>
+                                    Identificación del Cliente
+                                </h6>
                                 
-                                <div class="col-md-8 mb-3">
-                                    <label class="form-label">
-                                        Número de Identificación <span class="text-danger">*</span>
-                                    </label>
-                                    <InputText @bind-Value="clienteEditando.CedulaRuc" class="form-control" 
-                                               placeholder="@GetPlaceholderIdentificacion()" 
-                                               maxlength="13" />
-                                    <ValidationMessage For="@(() => clienteEditando.CedulaRuc)" class="text-danger small" />
-                                    @if (!string.IsNullOrEmpty(mensajeValidacionCedula))
-                                    {
-                                        <small class="text-danger d-block mt-1">
-                                            <i class="fa-solid fa-exclamation-circle me-1"></i>@mensajeValidacionCedula
-                                        </small>
-                                    }
-                                    <small class="text-muted">
-                                        <i class="fa-solid fa-info-circle me-1"></i>
-                                        @GetInfoIdentificacion()
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Sección: Datos Personales/Empresa -->
-                        <div class="border-bottom pb-3 mb-3">
-                            <h6 class="text-primary">
-                                <i class="fa-solid fa-user me-2"></i>
-                                Datos del Cliente
-                            </h6>
-                            
-                            <div class="row">
-                                <div class="col-md-12 mb-3">
-                                    <label class="form-label">
-                                        @(clienteEditando.TipoIdentificacion == "RUC" ? "Razón Social" : "Nombre Completo") 
-                                        <span class="text-danger">*</span>
-                                    </label>
-                                    <InputText @bind-Value="clienteEditando.Nombre" class="form-control" 
-                                               placeholder="@(clienteEditando.TipoIdentificacion == "RUC" ? "Ej: EMPRESA XYZ S.A." : "Ej: Juan Alberto Pérez García")" />
-                                    <ValidationMessage For="@(() => clienteEditando.Nombre)" class="text-danger small" />
-                                    <small class="text-muted">
-                                        <i class="fa-solid fa-info-circle me-1"></i>
-                                        Debe coincidir con el documento de identificación
-                                    </small>
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-12 mb-3">
-                                    <label class="form-label">
-                                        Dirección <span class="text-danger">*</span>
-                                    </label>
-                                    <InputText @bind-Value="clienteEditando.Direccion" class="form-control" 
-                                               placeholder="Calle principal y secundaria, número, ciudad" />
-                                    <ValidationMessage For="@(() => clienteEditando.Direccion)" class="text-danger small" />
-                                    <small class="text-muted">
-                                        <i class="fa-solid fa-map-marker-alt me-1"></i>
-                                        Dirección completa requerida para facturación electrónica
-                                    </small>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Sección: Contacto -->
-                        <div class="pb-3 mb-3">
-                            <h6 class="text-primary">
-                                <i class="fa-solid fa-address-book me-2"></i>
-                                Información de Contacto
-                            </h6>
-                            
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">
-                                        Correo Electrónico <span class="text-danger">*</span>
-                                    </label>
-                                    <div class="input-group">
-                                        <span class="input-group-text"><i class="fa-solid fa-envelope"></i></span>
-                                        <InputText @bind-Value="clienteEditando.Correo" class="form-control" 
-                                                   type="email" placeholder="cliente@ejemplo.com" />
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">
+                                            Tipo de Identificación <span class="text-danger">*</span>
+                                        </label>
+                                        <InputSelect @bind-Value="clienteEditando.TipoIdentificacion" class="form-select">
+                                            <option value="">Seleccione...</option>
+                                            <option value="CEDULA">Cédula (10 dígitos)</option>
+                                            <option value="RUC">RUC (13 dígitos)</option>
+                                            <option value="PASAPORTE">Pasaporte</option>
+                                        </InputSelect>
+                                        <ValidationMessage For="@(() => clienteEditando.TipoIdentificacion)" class="text-danger small" />
                                     </div>
-                                    <ValidationMessage For="@(() => clienteEditando.Correo)" class="text-danger small" />
-                                    <small class="text-muted">
-                                        <i class="fa-solid fa-paper-plane me-1"></i>
-                                        Se enviará la factura electrónica a este correo
-                                    </small>
+                                    
+                                    <div class="col-md-8 mb-3">
+                                        <label class="form-label">
+                                            Número de Identificación <span class="text-danger">*</span>
+                                        </label>
+                                        <InputText @bind-Value="clienteEditando.CedulaRuc" class="form-control" 
+                                                   placeholder="@GetPlaceholderIdentificacion()" 
+                                                   maxlength="13" />
+                                        <ValidationMessage For="@(() => clienteEditando.CedulaRuc)" class="text-danger small" />
+                                        @if (!string.IsNullOrEmpty(mensajeValidacionCedula))
+                                        {
+                                            <small class="text-danger d-block mt-1">
+                                                <i class="fa-solid fa-exclamation-circle me-1"></i>@mensajeValidacionCedula
+                                            </small>
+                                        }
+                                        <small class="text-muted">
+                                            <i class="fa-solid fa-info-circle me-1"></i>
+                                            @GetInfoIdentificacion()
+                                        </small>
+                                    </div>
                                 </div>
+                            </div>
+
+                            <!-- Sección: Datos Personales/Empresa -->
+                            <div class="border-bottom pb-3 mb-3">
+                                <h6 class="text-primary">
+                                    <i class="fa-solid fa-user me-2"></i>
+                                    Datos del Cliente
+                                </h6>
                                 
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">
-                                        Teléfono <span class="text-danger">*</span>
-                                    </label>
-                                    <div class="input-group">
-                                        <span class="input-group-text"><i class="fa-solid fa-phone"></i></span>
-                                        <InputText @bind-Value="clienteEditando.Telefono" class="form-control" 
-                                                   placeholder="0999999999" maxlength="10" />
-                                    </div>
-                                    <ValidationMessage For="@(() => clienteEditando.Telefono)" class="text-danger small" />
-                                    @if (!string.IsNullOrEmpty(mensajeValidacionTelefono))
-                                    {
-                                        <small class="text-danger d-block mt-1">
-                                            <i class="fa-solid fa-exclamation-circle me-1"></i>@mensajeValidacionTelefono
+                                <div class="row">
+                                    <div class="col-md-12 mb-3">
+                                        <label class="form-label">
+                                            @(clienteEditando.TipoIdentificacion == "RUC" ? "Razón Social" : "Nombre Completo") 
+                                            <span class="text-danger">*</span>
+                                        </label>
+                                        <InputText @bind-Value="clienteEditando.Nombre" class="form-control" 
+                                                   placeholder="@(clienteEditando.TipoIdentificacion == "RUC" ? "Ej: EMPRESA XYZ S.A." : "Ej: Juan Alberto Pérez García")" />
+                                        <ValidationMessage For="@(() => clienteEditando.Nombre)" class="text-danger small" />
+                                        <small class="text-muted">
+                                            <i class="fa-solid fa-info-circle me-1"></i>
+                                            Debe coincidir con el documento de identificación
                                         </small>
-                                    }
-                                    <small class="text-muted">10 dígitos (celular o convencional)</small>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-12 mb-3">
+                                        <label class="form-label">
+                                            Dirección <span class="text-danger">*</span>
+                                        </label>
+                                        <InputText @bind-Value="clienteEditando.Direccion" class="form-control" 
+                                                   placeholder="Calle principal y secundaria, número, ciudad" />
+                                        <ValidationMessage For="@(() => clienteEditando.Direccion)" class="text-danger small" />
+                                        <small class="text-muted">
+                                            <i class="fa-solid fa-map-marker-alt me-1"></i>
+                                            Dirección completa requerida para facturación electrónica
+                                        </small>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Mensajes -->
-                        @if (!string.IsNullOrEmpty(mensajeError))
-                        {
-                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                <i class="fa-solid fa-exclamation-triangle me-2"></i>
-                                <strong>Error:</strong> @mensajeError
-                                <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+                            <!-- Sección: Contacto -->
+                            <div class="pb-3 mb-3">
+                                <h6 class="text-primary">
+                                    <i class="fa-solid fa-address-book me-2"></i>
+                                    Información de Contacto
+                                </h6>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">
+                                            Correo Electrónico <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="fa-solid fa-envelope"></i></span>
+                                            <InputText @bind-Value="clienteEditando.Correo" class="form-control" 
+                                                       type="email" placeholder="cliente@ejemplo.com" />
+                                        </div>
+                                        <ValidationMessage For="@(() => clienteEditando.Correo)" class="text-danger small" />
+                                        <small class="text-muted">
+                                            <i class="fa-solid fa-paper-plane me-1"></i>
+                                            Se enviará la factura electrónica a este correo
+                                        </small>
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">
+                                            Teléfono <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="fa-solid fa-phone"></i></span>
+                                            <InputText @bind-Value="clienteEditando.Telefono" class="form-control" 
+                                                       placeholder="0999999999" maxlength="10" />
+                                        </div>
+                                        <ValidationMessage For="@(() => clienteEditando.Telefono)" class="text-danger small" />
+                                        @if (!string.IsNullOrEmpty(mensajeValidacionTelefono))
+                                        {
+                                            <small class="text-danger d-block mt-1">
+                                                <i class="fa-solid fa-exclamation-circle me-1"></i>@mensajeValidacionTelefono
+                                            </small>
+                                        }
+                                        <small class="text-muted">10 dígitos (celular o convencional)</small>
+                                    </div>
+                                </div>
                             </div>
-                        }
 
-                        @if (!string.IsNullOrEmpty(mensajeExito))
-                        {
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                <i class="fa-solid fa-check-circle me-2"></i>
-                                <strong>Éxito:</strong> @mensajeExito
-                                <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+                            <!-- Mensajes -->
+                            @if (!string.IsNullOrEmpty(mensajeError))
+                            {
+                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                    <i class="fa-solid fa-exclamation-triangle me-2"></i>
+                                    <strong>Error:</strong> @mensajeError
+                                    <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrEmpty(mensajeExito))
+                            {
+                                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                    <i class="fa-solid fa-check-circle me-2"></i>
+                                    <strong>Éxito:</strong> @mensajeExito
+                                    <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
+                                </div>
+                            }
+
+                            <!-- Botones -->
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="fa-solid fa-save me-2"></i>
+                                    Guardar Cliente
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-lg" @onclick="CancelarEdicion">
+                                    <i class="fa-solid fa-times me-2"></i>
+                                    Cancelar
+                                </button>
                             </div>
-                        }
-
-                        <!-- Botones -->
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-success btn-lg">
-                                <i class="fa-solid fa-save me-2"></i>
-                                Guardar Cliente
-                            </button>
-                            <button type="button" class="btn btn-secondary btn-lg" @onclick="CancelarEdicion">
-                                <i class="fa-solid fa-times me-2"></i>
-                                Cancelar
-                            </button>
-                        </div>
-                    </EditForm>
+                        </EditForm>
+                    </div>
                 </div>
-            </div>
-        }
+            }
 
-        <!-- Tabla de Clientes -->
-        @if (clientes == null)
-        {
-            <div class="text-center py-5">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Cargando...</span>
+            <!-- Tabla de Clientes -->
+            @if (clientes == null)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <p class="mt-2">Cargando clientes...</p>
                 </div>
-                <p class="mt-2">Cargando clientes...</p>
-            </div>
-        }
-        else if (!clientes.Any())
-        {
-            <div class="alert alert-info">
-                <i class="fa-solid fa-info-circle"></i> No hay clientes registrados. Haz clic en "Nuevo Cliente" para agregar uno.
-            </div>
-        }
-        else
-        {
-            <div class="table-responsive">
-                <table class="table table-hover table-striped align-middle">
-                    <thead class="table-primary">
-                        <tr>
-                            <th>Tipo ID</th>
-                            <th>Identificación</th>
-                            <th>Nombre / Razón Social</th>
-                            <th>Teléfono</th>
-                            <th>Correo</th>
-                            <th>Dirección</th>
-                            <th class="text-center">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var cliente in clientes)
-                        {
+            }
+            else if (!clientes.Any())
+            {
+                <div class="alert alert-info">
+                    <i class="fa-solid fa-info-circle"></i> No hay clientes registrados. Haz clic en "Nuevo Cliente" para agregar uno.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped align-middle">
+                        <thead class="table-primary">
                             <tr>
-                                <td>
-                                    <span class="badge @GetBadgeClass(cliente.TipoIdentificacion)">
-                                        @cliente.TipoIdentificacion
-                                    </span>
-                                </td>
-                                <td><code>@cliente.CedulaRuc</code></td>
-                                <td><strong>@cliente.Nombre</strong></td>
-                                <td>
-                                    <i class="fa-solid fa-phone text-muted me-1"></i>
-                                    @cliente.Telefono
-                                </td>
-                                <td>
-                                    <i class="fa-solid fa-envelope text-muted me-1"></i>
-                                    @cliente.Correo
-                                </td>
-                                <td class="small">@cliente.Direccion</td>
-                                <td class="text-center">
-                                    <button class="btn btn-sm btn-warning me-1" 
-                                            @onclick="() => EditarCliente(cliente)"
-                                            title="Editar cliente">
-                                        <i class="fa-solid fa-edit"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-danger" 
-                                            @onclick="() => EliminarCliente(cliente.Id)"
-                                            title="Eliminar cliente">
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
-                                </td>
+                                <th>Tipo ID</th>
+                                <th>Identificación</th>
+                                <th>Nombre / Razón Social</th>
+                                <th>Teléfono</th>
+                                <th>Correo</th>
+                                <th>Dirección</th>
+                                <th class="text-center">Acciones</th>
                             </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
+                        </thead>
+                        <tbody>
+                            @foreach (var cliente in clientes)
+                            {
+                                <tr>
+                                    <td>
+                                        <span class="badge @GetBadgeClass(cliente.TipoIdentificacion)">
+                                            @cliente.TipoIdentificacion
+                                        </span>
+                                    </td>
+                                    <td><code>@cliente.CedulaRuc</code></td>
+                                    <td><strong>@cliente.Nombre</strong></td>
+                                    <td>
+                                        <i class="fa-solid fa-phone text-muted me-1"></i>
+                                        @cliente.Telefono
+                                    </td>
+                                    <td>
+                                        <i class="fa-solid fa-envelope text-muted me-1"></i>
+                                        @cliente.Correo
+                                    </td>
+                                    <td class="small">@cliente.Direccion</td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm flex-nowrap" role="group" aria-label="Acciones">
+                                            <button class="btn btn-warning" title="Editar" @onclick="() => EditarCliente(cliente)">
+                                                <i class="fa-solid fa-pen-to-square"></i>
+                                            </button>
+                                            <button class="btn btn-danger" title="Eliminar" @onclick="() => EliminarCliente(cliente.Id)">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
     </div>
 </div>
 

@@ -1,152 +1,132 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Infrastructure.Data;
-using Domain.Entities;
+using Infrastructure.Data;     // ApplicationDbContext
+using Domain.Entities;         // Producto, Lote
 
 namespace WebAPI.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
     public class ProductosController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
+        private readonly ApplicationDbContext _db;
+        public ProductosController(ApplicationDbContext db) => _db = db;
 
-        public ProductosController(ApplicationDbContext context)
-        {
-            _context = context;
-        }
-
-        // GET: api/productos
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Producto>>> GetProductos()
+        public async Task<ActionResult<IEnumerable<ProductoDto>>> Get()
         {
-            try
-            {
-                var productos = await _context.Productos
-                    .Include(p => p.Lotes)
-                    .ToListAsync();
-                return Ok(productos);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = ex.Message });
-            }
-        }
-
-        // GET: api/productos/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Producto>> GetProducto(int id)
-        {
-            var producto = await _context.Productos
+            var data = await _db.Productos
+                .AsNoTracking()
                 .Include(p => p.Lotes)
-                .FirstOrDefaultAsync(p => p.Id == id);
+                .OrderBy(p => p.Id)
+                .Select(p => new ProductoDto
+                {
+                    Id = p.Id,
+                    Codigo = p.Codigo,
+                    Nombre = p.Nombre,
+                    Descripcion = p.Descripcion,
+                    Lotes = p.Lotes.Select(l => new LoteDto
+                    {
+                        Id = l.Id,
+                        NumeroLote = l.NumeroLote,
+                        Cantidad = l.Cantidad,
+                        PrecioUnitario = l.PrecioUnitario
+                    }).ToList()
+                })
+                .ToListAsync();
 
-            if (producto == null)
-            {
-                return NotFound();
-            }
-
-            return Ok(producto);
+            return Ok(data);
         }
 
-        // POST: api/productos
         [HttpPost]
-        public async Task<ActionResult<Producto>> PostProducto(Producto producto)
+        public async Task<ActionResult> Post([FromBody] ProductoCreateDto dto)
         {
-            try
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+            var exists = await _db.Productos.AnyAsync(x => x.Codigo == dto.Codigo);
+            if (exists) return Conflict("El código ya existe.");
+
+            var entity = new Producto
             {
-                // Asegurarse de que los lotes tengan referencia al producto
-                if (producto.Lotes != null && producto.Lotes.Any())
+                Codigo = dto.Codigo,
+                Nombre = dto.Nombre,
+                Descripcion = dto.Descripcion,
+                Lotes = dto.Lotes?.Select(l => new Lote
                 {
-                    foreach (var lote in producto.Lotes)
-                    {
-                        lote.ProductoId = producto.Id;
-                    }
-                }
+                    NumeroLote = l.NumeroLote,
+                    Cantidad = l.Cantidad,
+                    PrecioUnitario = l.PrecioUnitario
+                }).ToList() ?? new()
+            };
 
-                _context.Productos.Add(producto);
-                await _context.SaveChangesAsync();
-
-                return CreatedAtAction(nameof(GetProducto), new { id = producto.Id }, producto);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = ex.Message, inner = ex.InnerException?.Message });
-            }
+            _db.Productos.Add(entity);
+            await _db.SaveChangesAsync();
+            return CreatedAtAction(nameof(Get), new { id = entity.Id }, null);
         }
 
-        // PUT: api/productos/5
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutProducto(int id, Producto producto)
+        [HttpPut("{id:int}")]
+        public async Task<ActionResult> Put(int id, [FromBody] ProductoCreateDto dto)
         {
-            if (id != producto.Id)
+            var prod = await _db.Productos.Include(p => p.Lotes).FirstOrDefaultAsync(p => p.Id == id);
+            if (prod is null) return NotFound();
+
+            prod.Codigo = dto.Codigo;
+            prod.Nombre = dto.Nombre;
+            prod.Descripcion = dto.Descripcion;
+
+            // Reemplazar lotes (simple y seguro)
+            _db.Lotes.RemoveRange(prod.Lotes);
+            prod.Lotes = dto.Lotes?.Select(l => new Lote
             {
-                return BadRequest();
-            }
+                NumeroLote = l.NumeroLote,
+                Cantidad = l.Cantidad,
+                PrecioUnitario = l.PrecioUnitario
+            }).ToList() ?? new();
 
-            try
-            {
-                // Obtener el producto existente con sus lotes
-                var productoExistente = await _context.Productos
-                    .Include(p => p.Lotes)
-                    .FirstOrDefaultAsync(p => p.Id == id);
-
-                if (productoExistente == null)
-                {
-                    return NotFound();
-                }
-
-                // Actualizar propiedades del producto
-                productoExistente.Codigo = producto.Codigo;
-                productoExistente.Nombre = producto.Nombre;
-                productoExistente.Descripcion = producto.Descripcion;
-
-                // Eliminar lotes antiguos
-                _context.Lotes.RemoveRange(productoExistente.Lotes);
-
-                // Agregar nuevos lotes
-                if (producto.Lotes != null && producto.Lotes.Any())
-                {
-                    foreach (var lote in producto.Lotes)
-                    {
-                        lote.ProductoId = id;
-                        lote.Id = 0; // Asegurar que sea un nuevo registro
-                        productoExistente.Lotes.Add(lote);
-                    }
-                }
-
-                await _context.SaveChangesAsync();
-                return NoContent();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = ex.Message, inner = ex.InnerException?.Message });
-            }
-        }
-
-        // DELETE: api/productos/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteProducto(int id)
-        {
-            var producto = await _context.Productos
-                .Include(p => p.Lotes)
-                .FirstOrDefaultAsync(p => p.Id == id);
-
-            if (producto == null)
-            {
-                return NotFound();
-            }
-
-            _context.Productos.Remove(producto);
-            await _context.SaveChangesAsync();
-
+            await _db.SaveChangesAsync();
             return NoContent();
         }
 
-        private bool ProductoExists(int id)
+        [HttpDelete("{id:int}")]
+        public async Task<ActionResult> Delete(int id)
         {
-            return _context.Clientes.Any(e => e.Id == id);
+            var prod = await _db.Productos.Include(p => p.Lotes).FirstOrDefaultAsync(p => p.Id == id);
+            if (prod is null) return NotFound();
+
+            _db.Lotes.RemoveRange(prod.Lotes);
+            _db.Productos.Remove(prod);
+            await _db.SaveChangesAsync();
+            return NoContent();
         }
+    }
+
+    public class ProductoDto
+    {
+        public int Id { get; set; }
+        public string Codigo { get; set; } = "";
+        public string Nombre { get; set; } = "";
+        public string? Descripcion { get; set; }
+        public List<LoteDto> Lotes { get; set; } = new();
+    }
+    public class LoteDto
+    {
+        public int Id { get; set; }
+        public string NumeroLote { get; set; } = "";
+        public int Cantidad { get; set; }
+        public decimal PrecioUnitario { get; set; }
+    }
+    public class ProductoCreateDto
+    {
+        public string Codigo { get; set; } = "";
+        public string Nombre { get; set; } = "";
+        public string? Descripcion { get; set; }
+        public List<LoteCreateDto> Lotes { get; set; } = new();
+    }
+    public class LoteCreateDto
+    {
+        public string NumeroLote { get; set; } = "";
+        public int Cantidad { get; set; }
+        public decimal PrecioUnitario { get; set; }
     }
 }
 

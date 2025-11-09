@@ -16,6 +16,10 @@ namespace Infrastructure.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            modelBuilder.Entity<Usuario>()
+                .HasIndex(u => u.Username)
+                .IsUnique();
+
             // Configuración Cliente
             modelBuilder.Entity<Cliente>(entity =>
             {
@@ -96,7 +100,6 @@ namespace Infrastructure.Data
 
         private void SeedData(ModelBuilder modelBuilder)
         {
-            // Fecha fija para seed
             var fechaActual = new DateTime(2025, 1, 1);
 
             // Seed Clientes
@@ -194,17 +197,8 @@ namespace Infrastructure.Data
                 new Lote { Id = 14, NumeroLote = "FAC-010-010-0010123", ProductoId = 10, Cantidad = 12, PrecioUnitario = 25.00m, FechaIngreso = fechaActual }
             );
 
-            // Seed Usuario Admin con hash pre-generado (password: admin123)
-            // Hash generado con: BCrypt.Net.BCrypt.HashPassword("admin123")
-            modelBuilder.Entity<Usuario>().HasData(
-                new Usuario
-                {
-                    Id = 1,
-                    Username = "admin",
-                    PasswordHash = "$2a$11$8z7kZqK5y3K0Wl8KqX5Y.eN7HgZ8xF2Q3R5T6Y7U8V9W0X1Y2Z3A4", // admin123
-                    Rol = "ADMIN"
-                }
-            );
+            // Quitar el seed del usuario aquí. Lo hará el DbInitializer en runtime.
+            // modelBuilder.Entity<Usuario>().HasData(...);  <-- ELIMINADO
         }
     }
 }

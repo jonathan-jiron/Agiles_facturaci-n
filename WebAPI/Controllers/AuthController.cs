@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using AllowAnonymous = Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute;
 
 namespace WebAPI.Controllers
 {
@@ -25,68 +26,53 @@ namespace WebAPI.Controllers
         [HttpPost("login")]
         public async Task<ActionResult> Login([FromBody] LoginRequest request)
         {
-            // Buscar usuario por Username (actualizado)
-            var usuario = await _context.Usuarios
-                .FirstOrDefaultAsync(u => u.Username == request.Username);
-
-            if (usuario == null)
+            try
             {
-                return Unauthorized(new { message = "Usuario o contraseña incorrectos" });
-            }
+                // Buscar usuario
+                var usuario = await _context.Usuarios
+                    .FirstOrDefaultAsync(u => u.Username == request.Username);
 
-            // Verificar contraseña con BCrypt
-            if (!BCrypt.Net.BCrypt.Verify(request.Password, usuario.PasswordHash))
-            {
-                return Unauthorized(new { message = "Usuario o contraseña incorrectos" });
-            }
-
-            // Generar token JWT
-            var token = GenerateJwtToken(usuario);
-
-            return Ok(new
-            {
-                token,
-                usuario = new
+                if (usuario == null)
                 {
-                    id = usuario.Id,
-                    username = usuario.Username,
-                    rol = usuario.Rol
+                    return Unauthorized(new { message = "Usuario o contraseña incorrectos" });
                 }
-            });
-        }
 
-        [HttpPost("register")]
-        public async Task<ActionResult> Register([FromBody] RegisterRequest request)
-        {
-            // Verificar si el usuario ya existe
-            if (await _context.Usuarios.AnyAsync(u => u.Username == request.Username))
-            {
-                return BadRequest(new { message = "El usuario ya existe" });
+                // Verificar contraseña con BCrypt
+                bool isValid = BCrypt.Net.BCrypt.Verify(request.Password, usuario.PasswordHash);
+                
+                if (!isValid)
+                {
+                    return Unauthorized(new { message = "Usuario o contraseña incorrectos" });
+                }
+
+                // Generar token JWT
+                var token = GenerateJwtToken(usuario);
+
+                return Ok(new
+                {
+                    token,
+                    usuario = new
+                    {
+                        id = usuario.Id,
+                        username = usuario.Username,
+                        rol = usuario.Rol
+                    }
+                });
             }
-
-            // Crear nuevo usuario
-            var nuevoUsuario = new Usuario
+            catch (Exception ex)
             {
-                Username = request.Username,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Rol = request.Rol ?? "USER"
-            };
-
-            _context.Usuarios.Add(nuevoUsuario);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Usuario registrado exitosamente" });
+                return StatusCode(500, new { message = "Error interno del servidor", error = ex.Message });
+            }
         }
 
         private string GenerateJwtToken(Usuario usuario)
         {
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
-            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+            var jwtKey = _configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key no configurada");
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, usuario.Username),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
                 new Claim(ClaimTypes.Name, usuario.Username),
                 new Claim(ClaimTypes.Role, usuario.Rol)
@@ -96,24 +82,24 @@ namespace WebAPI.Controllers
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.Now.AddHours(3),
+                expires: DateTime.UtcNow.AddHours(8),
                 signingCredentials: credentials
             );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+#if DEBUG
+        [HttpGet("dev/hash")]
+        [AllowAnonymous]
+        public IActionResult GetHash([FromQuery] string pwd) =>
+            Ok(BCrypt.Net.BCrypt.HashPassword(pwd, workFactor: 11));
+#endif
     }
 
     public class LoginRequest
     {
         public string Username { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
-    }
-
-    public class RegisterRequest
-    {
-        public string Username { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-        public string? Rol { get; set; }
     }
 }

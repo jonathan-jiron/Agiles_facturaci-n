@@ -2,16 +2,30 @@
 
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.Extensions.DependencyInjection; // <-- agrega este using
+using System.Net.Http;
 using UI;
+using UI.Services;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
-builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// Configurar HttpClient con la URL base del API
-builder.Services.AddScoped(sp => new HttpClient
+builder.Services.AddAuthorizationCore();
+
+builder.Services.AddScoped<AuthStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<AuthStateProvider>());
+
+builder.Services.AddScoped<ApiAuthorizationMessageHandler>();
+
+builder.Services.AddHttpClient("Api", c =>
 {
-    BaseAddress = new Uri("http://localhost:5240/") // Asegúrate que sea el puerto de WebAPI
-});
+    c.BaseAddress = new Uri("http://localhost:5240/");
+}).AddHttpMessageHandler<ApiAuthorizationMessageHandler>();
+
+builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("Api"));
+
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<ProductoService>();
 
 await builder.Build().RunAsync();
