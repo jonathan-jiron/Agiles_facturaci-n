@@ -40,30 +40,21 @@ builder.Services.AddCors(options =>
 });
 
 // Configuración de JWT Authentication
-var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key no configurada");
-var key = Encoding.ASCII.GetBytes(jwtKey);
-
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.RequireHttpsMetadata = false;
-    options.SaveToken = true;
-    options.TokenValidationParameters = new TokenValidationParameters
+var jwtCfg = builder.Configuration.GetSection("Jwt");
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer(opt =>
     {
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateIssuer = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidateAudience = true,
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero
-    };
-});
+        opt.TokenValidationParameters = new TokenValidationParameters {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtCfg["Issuer"],
+            ValidAudience = jwtCfg["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtCfg["Key"]!)),
+            ClockSkew = TimeSpan.Zero
+        };
+    });
 
 builder.Services.AddAuthorization();
 
@@ -83,7 +74,16 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Seed admin
-await DbInitializer.InitializeAsync(app.Services);
+app.Use(async (ctx, next) =>
+{
+    try {
+        await next();
+    } catch (Exception ex) {
+        ctx.Response.StatusCode = 500;
+        await ctx.Response.WriteAsJsonAsync(new { error = "Error interno", trace = ex.Message });
+    }
+});
 
+// Seed admin
+await WebAPI.Seed.DbInitializer.InitializeAsync(app.Services);
 app.Run();

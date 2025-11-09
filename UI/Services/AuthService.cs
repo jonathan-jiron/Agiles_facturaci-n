@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.JSInterop;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Authorization;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace UI.Services;
 
@@ -19,22 +20,42 @@ public class AuthService
         _stateProvider = (AuthStateProvider)authState;
     }
 
-    public async Task<bool> LoginAsync(string username, string password)
+    public async Task<(bool ok, string? error)> LoginAsync(string username, string password)
     {
+        username = username?.Trim() ?? "";
+        password = password ?? "";
+
         var resp = await _http.PostAsJsonAsync("api/auth/login", new { username, password });
-        if (!resp.IsSuccessStatusCode) return false;
+
+        if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest)
+            return (false, "Datos inválidos");
+
+        if (resp.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            return (false, "Usuario o contraseña incorrectos");
+
+        if (!resp.IsSuccessStatusCode)
+            return (false, $"Error servidor ({(int)resp.StatusCode})");
 
         var json = await resp.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(json);
-        var token = doc.RootElement.GetProperty("token").GetString();
-        if (string.IsNullOrWhiteSpace(token)) return false;
+        if (!doc.RootElement.TryGetProperty("token", out var tokenProp))
+            return (false, "Respuesta sin token");
+
+        var token = tokenProp.GetString();
+        if (string.IsNullOrWhiteSpace(token))
+            return (false, "Token inválido");
 
         await _js.InvokeVoidAsync("localStorage.setItem", "authToken", token);
         await _stateProvider.MarkUserAuthenticatedAsync(token);
-        return true;
+        return (true, null);
     }
 
-    public Task<bool> Login(string username, string password) => LoginAsync(username, password);
+    // Wrapper opcional si tienes llamadas antiguas
+    public async Task<bool> Login(string username, string password)
+    {
+        var (ok, _) = await LoginAsync(username, password);
+        return ok;
+    }
 
     public async Task LogoutAsync()
     {
@@ -42,19 +63,27 @@ public class AuthService
         await _stateProvider.MarkUserLoggedOutAsync();
     }
 
+    private static bool TokenExpired(string token)
+    {
+        var handler = new JwtSecurityTokenHandler();
+        JwtSecurityToken jwt;
+        try { jwt = handler.ReadJwtToken(token); } catch { return true; }
+        return jwt.ValidTo <= DateTime.UtcNow;
+    }
+
     public async Task<bool> IsAuthenticated()
     {
         var token = await _js.InvokeAsync<string>("localStorage.getItem", "authToken");
-        return !string.IsNullOrWhiteSpace(token);
+        return !string.IsNullOrWhiteSpace(token) && !TokenExpired(token);
     }
 
     public async Task<UsuarioInfo?> GetCurrentUser()
     {
         var token = await _js.InvokeAsync<string>("localStorage.getItem", "authToken");
-        if (string.IsNullOrWhiteSpace(token)) return null;
+        if (string.IsNullOrWhiteSpace(token) || TokenExpired(token)) return null;
 
-        var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
-        System.IdentityModel.Tokens.Jwt.JwtSecurityToken? jwt;
+        var handler = new JwtSecurityTokenHandler();
+        JwtSecurityToken jwt;
         try { jwt = handler.ReadJwtToken(token); } catch { return null; }
 
         var username = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name || c.Type == "unique_name")?.Value ?? "";

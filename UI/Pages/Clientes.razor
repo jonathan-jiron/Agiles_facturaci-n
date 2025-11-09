@@ -1,9 +1,11 @@
 @page "/clientes"
 @attribute [Authorize]
+@layout MainLayout
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
 @using System.ComponentModel.DataAnnotations
 @using System.Text.RegularExpressions
+@using UI.Pages
 
 <h3 class="mb-4"><i class="fa-solid fa-users me-2"></i>Gestión de Clientes</h3>
 
@@ -20,11 +22,11 @@
                     <div class="card-header bg-primary text-white">
                         <h5 class="mb-0">
                             <i class="fa-solid fa-id-card me-2"></i>
-                            @(clienteEditando.Id == 0 ? "Registrar Nuevo Cliente" : "Editar Cliente")
+                            @(clienteActual.Id == 0 ? "Registrar Nuevo Cliente" : "Editar Cliente")
                         </h5>
                     </div>
                     <div class="card-body">
-                        <EditForm Model="@clienteEditando" OnValidSubmit="@GuardarCliente">
+                        <EditForm Model="@clienteActual" OnValidSubmit="@GuardarCliente">
                             <DataAnnotationsValidator />
                             
                             <!-- Sección: Identificación -->
@@ -39,23 +41,23 @@
                                         <label class="form-label">
                                             Tipo de Identificación <span class="text-danger">*</span>
                                         </label>
-                                        <InputSelect @bind-Value="clienteEditando.TipoIdentificacion" class="form-select">
+                                        <InputSelect @bind-Value="clienteActual.TipoIdentificacion" class="form-select">
                                             <option value="">Seleccione...</option>
                                             <option value="CEDULA">Cédula (10 dígitos)</option>
                                             <option value="RUC">RUC (13 dígitos)</option>
                                             <option value="PASAPORTE">Pasaporte</option>
                                         </InputSelect>
-                                        <ValidationMessage For="@(() => clienteEditando.TipoIdentificacion)" class="text-danger small" />
+                                        <ValidationMessage For="@(() => clienteActual.TipoIdentificacion)" class="text-danger small" />
                                     </div>
                                     
                                     <div class="col-md-8 mb-3">
                                         <label class="form-label">
                                             Número de Identificación <span class="text-danger">*</span>
                                         </label>
-                                        <InputText @bind-Value="clienteEditando.CedulaRuc" class="form-control" 
+                                        <InputText @bind-Value="clienteActual.Identificacion" class="form-control" 
                                                    placeholder="@GetPlaceholderIdentificacion()" 
                                                    maxlength="13" />
-                                        <ValidationMessage For="@(() => clienteEditando.CedulaRuc)" class="text-danger small" />
+                                        <ValidationMessage For="@(() => clienteActual.Identificacion)" class="text-danger small" />
                                         @if (!string.IsNullOrEmpty(mensajeValidacionCedula))
                                         {
                                             <small class="text-danger d-block mt-1">
@@ -80,12 +82,12 @@
                                 <div class="row">
                                     <div class="col-md-12 mb-3">
                                         <label class="form-label">
-                                            @(clienteEditando.TipoIdentificacion == "RUC" ? "Razón Social" : "Nombre Completo") 
+                                            @(clienteActual.TipoIdentificacion == "RUC" ? "Razón Social" : "Nombre Completo") 
                                             <span class="text-danger">*</span>
                                         </label>
-                                        <InputText @bind-Value="clienteEditando.Nombre" class="form-control" 
-                                                   placeholder="@(clienteEditando.TipoIdentificacion == "RUC" ? "Ej: EMPRESA XYZ S.A." : "Ej: Juan Alberto Pérez García")" />
-                                        <ValidationMessage For="@(() => clienteEditando.Nombre)" class="text-danger small" />
+                                        <InputText @bind-Value="clienteActual.NombreRazonSocial" class="form-control" 
+                                                   placeholder="@(clienteActual.TipoIdentificacion == "RUC" ? "Ej: EMPRESA XYZ S.A." : "Ej: Juan Alberto Pérez García")" />
+                                        <ValidationMessage For="@(() => clienteActual.NombreRazonSocial)" class="text-danger small" />
                                         <small class="text-muted">
                                             <i class="fa-solid fa-info-circle me-1"></i>
                                             Debe coincidir con el documento de identificación
@@ -98,9 +100,9 @@
                                         <label class="form-label">
                                             Dirección <span class="text-danger">*</span>
                                         </label>
-                                        <InputText @bind-Value="clienteEditando.Direccion" class="form-control" 
+                                        <InputText @bind-Value="clienteActual.Direccion" class="form-control" 
                                                    placeholder="Calle principal y secundaria, número, ciudad" />
-                                        <ValidationMessage For="@(() => clienteEditando.Direccion)" class="text-danger small" />
+                                        <ValidationMessage For="@(() => clienteActual.Direccion)" class="text-danger small" />
                                         <small class="text-muted">
                                             <i class="fa-solid fa-map-marker-alt me-1"></i>
                                             Dirección completa requerida para facturación electrónica
@@ -123,10 +125,10 @@
                                         </label>
                                         <div class="input-group">
                                             <span class="input-group-text"><i class="fa-solid fa-envelope"></i></span>
-                                            <InputText @bind-Value="clienteEditando.Correo" class="form-control" 
+                                            <InputText @bind-Value="clienteActual.Correo" class="form-control" 
                                                        type="email" placeholder="cliente@ejemplo.com" />
                                         </div>
-                                        <ValidationMessage For="@(() => clienteEditando.Correo)" class="text-danger small" />
+                                        <ValidationMessage For="@(() => clienteActual.Correo)" class="text-danger small" />
                                         <small class="text-muted">
                                             <i class="fa-solid fa-paper-plane me-1"></i>
                                             Se enviará la factura electrónica a este correo
@@ -139,10 +141,10 @@
                                         </label>
                                         <div class="input-group">
                                             <span class="input-group-text"><i class="fa-solid fa-phone"></i></span>
-                                            <InputText @bind-Value="clienteEditando.Telefono" class="form-control" 
+                                            <InputText @bind-Value="clienteActual.Telefono" class="form-control" 
                                                        placeholder="0999999999" maxlength="10" />
                                         </div>
-                                        <ValidationMessage For="@(() => clienteEditando.Telefono)" class="text-danger small" />
+                                        <ValidationMessage For="@(() => clienteActual.Telefono)" class="text-danger small" />
                                         @if (!string.IsNullOrEmpty(mensajeValidacionTelefono))
                                         {
                                             <small class="text-danger d-block mt-1">
@@ -226,11 +228,11 @@
                                 <tr>
                                     <td>
                                         <span class="badge @GetBadgeClass(cliente.TipoIdentificacion)">
-                                            @cliente.TipoIdentificacion
+                                            @GetTipoIdLabel(cliente.TipoIdentificacion)
                                         </span>
                                     </td>
-                                    <td><code>@cliente.CedulaRuc</code></td>
-                                    <td><strong>@cliente.Nombre</strong></td>
+                                    <td>@cliente.Identificacion</td>
+                                    <td><strong>@cliente.NombreRazonSocial</strong></td>
                                     <td>
                                         <i class="fa-solid fa-phone text-muted me-1"></i>
                                         @cliente.Telefono
@@ -245,9 +247,12 @@
                                             <button class="btn btn-warning" title="Editar" @onclick="() => EditarCliente(cliente)">
                                                 <i class="fa-solid fa-pen-to-square"></i>
                                             </button>
-                                            <button class="btn btn-danger" title="Eliminar" @onclick="() => EliminarCliente(cliente.Id)">
-                                                <i class="fa-solid fa-trash"></i>
-                                            </button>
+<button class="btn btn-danger" title="Eliminar" @onclick="() => SolicitarConfirmacion(
+        ObtenerMensajeEliminarCliente(cliente),
+        () => EliminarCliente(cliente.Id)
+    )">
+    <i class="fa-solid fa-trash"></i>
+</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -260,301 +265,191 @@
     </div>
 </div>
 
+@if (mostrarConfirmacion)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="fa-solid fa-exclamation-triangle me-2"></i>Confirmar eliminación</h5>
+                </div>
+                <div class="modal-body">
+                    <p>@mensajeConfirmacion</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-danger" @onclick="ConfirmarEliminacion">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                    <button class="btn btn-secondary" @onclick="CancelarEliminacion">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
-    private List<Cliente>? clientes;
-    private Cliente clienteEditando = new Cliente();
+    private List<Cliente> clientes = new();
+    private Cliente clienteActual = new Cliente();
     private bool mostrarFormulario = false;
-    private string mensajeError = string.Empty;
-    private string mensajeExito = string.Empty;
-    private string mensajeValidacionCedula = string.Empty;
-    private string mensajeValidacionTelefono = string.Empty;
+    private string mensajeError = "";
+    private string mensajeExito = "";
+    private string mensajeValidacionCedula = "";
+    private string mensajeValidacionTelefono = "";
+    private bool mostrarConfirmacion = false;
+    private string mensajeConfirmacion = "";
+    private Func<Task>? accionConfirmar = null;
 
     protected override async Task OnInitializedAsync()
     {
-        await CargarClientes();
+        await LoadClientes();
     }
 
-    private async Task CargarClientes()
+    private async Task LoadClientes()
     {
-        try
-        {
-            clientes = await Http.GetFromJsonAsync<List<Cliente>>("api/clientes");
-        }
-        catch (Exception ex)
-        {
-            mensajeError = $"Error al cargar clientes: {ex.Message}";
-        }
+        clientes = await Http.GetFromJsonAsync<List<Cliente>>("http://localhost:5240/api/clientes") ?? new List<Cliente>();
     }
 
     private void MostrarFormularioNuevo()
     {
-        clienteEditando = new Cliente();
+        clienteActual = new Cliente();
         mostrarFormulario = true;
-        LimpiarMensajes();
-    }
-
-    private void EditarCliente(Cliente cliente)
-    {
-        clienteEditando = new Cliente
-        {
-            Id = cliente.Id,
-            TipoIdentificacion = cliente.TipoIdentificacion,
-            Nombre = cliente.Nombre,
-            CedulaRuc = cliente.CedulaRuc,
-            Telefono = cliente.Telefono,
-            Correo = cliente.Correo,
-            Direccion = cliente.Direccion
-        };
-        mostrarFormulario = true;
-        LimpiarMensajes();
-    }
-
-    private async Task GuardarCliente()
-    {
-        LimpiarMensajes();
-
-        // Validar Tipo de Identificación
-        if (string.IsNullOrEmpty(clienteEditando.TipoIdentificacion))
-        {
-            mensajeError = "Debe seleccionar el tipo de identificación";
-            return;
-        }
-
-        // Validar según tipo
-        if (!ValidarIdentificacion(clienteEditando.TipoIdentificacion, clienteEditando.CedulaRuc))
-        {
-            return;
-        }
-
-        // Validar Teléfono
-        if (!ValidarTelefono(clienteEditando.Telefono))
-        {
-            mensajeValidacionTelefono = "El teléfono debe tener exactamente 10 dígitos";
-            return;
-        }
-
-        // Validar Dirección
-        if (string.IsNullOrWhiteSpace(clienteEditando.Direccion))
-        {
-            mensajeError = "La dirección es obligatoria para facturación electrónica";
-            return;
-        }
-
-        try
-        {
-            HttpResponseMessage response;
-
-            if (clienteEditando.Id == 0)
-            {
-                response = await Http.PostAsJsonAsync("api/clientes", clienteEditando);
-            }
-            else
-            {
-                response = await Http.PutAsJsonAsync($"api/clientes/{clienteEditando.Id}", clienteEditando);
-            }
-
-            if (response.IsSuccessStatusCode)
-            {
-                mensajeExito = clienteEditando.Id == 0 
-                    ? "Cliente registrado exitosamente. Listo para facturación electrónica." 
-                    : "Cliente actualizado exitosamente";
-                await CargarClientes();
-                await Task.Delay(1500);
-                CancelarEdicion();
-            }
-            else
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                mensajeError = $"Error al guardar: {errorContent}";
-            }
-        }
-        catch (Exception ex)
-        {
-            mensajeError = $"Error: {ex.Message}";
-        }
-    }
-
-    private async Task EliminarCliente(int id)
-    {
-        if (await JSRuntime.InvokeAsync<bool>("confirm", "¿Está seguro de eliminar este cliente?\n\nNota: Si tiene facturas asociadas, no se podrá eliminar."))
-        {
-            try
-            {
-                var response = await Http.DeleteAsync($"api/clientes/{id}");
-
-                if (response.IsSuccessStatusCode)
-                {
-                    mensajeExito = "Cliente eliminado exitosamente";
-                    await CargarClientes();
-                }
-                else
-                {
-                    mensajeError = "Error al eliminar el cliente. Verifique que no tenga facturas asociadas.";
-                }
-            }
-            catch (Exception ex)
-            {
-                mensajeError = $"Error: {ex.Message}";
-            }
-        }
+        mensajeError = "";
+        mensajeExito = "";
     }
 
     private void CancelarEdicion()
     {
         mostrarFormulario = false;
-        clienteEditando = new Cliente();
-        LimpiarMensajes();
+        mensajeError = "";
+        mensajeExito = "";
     }
 
-    private void LimpiarMensajes()
+    private async Task GuardarCliente()
     {
-        mensajeError = string.Empty;
-        mensajeExito = string.Empty;
-        mensajeValidacionCedula = string.Empty;
-        mensajeValidacionTelefono = string.Empty;
+        mensajeError = "";
+        mensajeExito = "";
+
+        var dto = new
+        {
+            tipoIdentificacion = clienteActual.TipoIdentificacion,
+            identificacion = clienteActual.Identificacion?.Trim(),
+            nombreRazonSocial = clienteActual.NombreRazonSocial?.Trim(),
+            telefono = clienteActual.Telefono?.Trim(),
+            direccion = clienteActual.Direccion?.Trim(),
+            correo = clienteActual.Correo?.Trim()
+        };
+
+        HttpResponseMessage response;
+        if (clienteActual.Id > 0)
+            response = await Http.PutAsJsonAsync($"http://localhost:5240/api/clientes/{clienteActual.Id}", dto);
+        else
+            response = await Http.PostAsJsonAsync("http://localhost:5240/api/clientes", dto);
+
+        if (response.IsSuccessStatusCode)
+        {
+            mensajeExito = "Cliente guardado correctamente";
+            await LoadClientes();
+            CancelarEdicion();
+        }
+        else if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            mensajeError = "La identificación ya está registrada. Usa un número diferente.";
+        }
+        else
+        {
+            mensajeError = "Error al guardar el cliente";
+        }
     }
 
-    private bool ValidarIdentificacion(string tipo, string numero)
+    private void SolicitarConfirmacion(string mensaje, Func<Task> accion)
     {
-        if (string.IsNullOrWhiteSpace(numero))
-        {
-            mensajeValidacionCedula = "El número de identificación es requerido";
-            return false;
-        }
-
-        switch (tipo)
-        {
-            case "CEDULA":
-                if (numero.Length != 10 || !Regex.IsMatch(numero, @"^\d{10}$"))
-                {
-                    mensajeValidacionCedula = "La cédula debe tener exactamente 10 dígitos numéricos";
-                    return false;
-                }
-                // Validar algoritmo de cédula ecuatoriana
-                if (!ValidarCedulaEcuatoriana(numero))
-                {
-                    mensajeValidacionCedula = "La cédula no es válida según el algoritmo del SRI";
-                    return false;
-                }
-                break;
-
-            case "RUC":
-                if (numero.Length != 13 || !Regex.IsMatch(numero, @"^\d{13}$"))
-                {
-                    mensajeValidacionCedula = "El RUC debe tener exactamente 13 dígitos numéricos";
-                    return false;
-                }
-                // El RUC debe terminar en 001
-                if (!numero.EndsWith("001"))
-                {
-                    mensajeValidacionCedula = "El RUC debe terminar en 001";
-                    return false;
-                }
-                break;
-
-            case "PASAPORTE":
-                if (numero.Length < 5 || numero.Length > 20)
-                {
-                    mensajeValidacionCedula = "El pasaporte debe tener entre 5 y 20 caracteres";
-                    return false;
-                }
-                break;
-        }
-
-        return true;
+        mensajeConfirmacion = mensaje;
+        accionConfirmar = accion;
+        mostrarConfirmacion = true;
     }
 
-    private bool ValidarCedulaEcuatoriana(string cedula)
+    private async Task ConfirmarEliminacion()
     {
-        // Algoritmo de validación de cédula ecuatoriana
-        if (cedula.Length != 10) return false;
-
-        int[] coeficientes = { 2, 1, 2, 1, 2, 1, 2, 1, 2 };
-        int suma = 0;
-        int digitoVerificador = int.Parse(cedula[9].ToString());
-
-        for (int i = 0; i < 9; i++)
-        {
-            int digito = int.Parse(cedula[i].ToString()) * coeficientes[i];
-            if (digito > 9) digito -= 9;
-            suma += digito;
-        }
-
-        int resultado = suma % 10 == 0 ? 0 : 10 - (suma % 10);
-        return resultado == digitoVerificador;
+        mostrarConfirmacion = false;
+        if (accionConfirmar != null)
+            await accionConfirmar.Invoke();
     }
 
-    private bool ValidarTelefono(string? telefono)
+    private void CancelarEliminacion()
     {
-        if (string.IsNullOrWhiteSpace(telefono)) 
-        {
-            mensajeValidacionTelefono = "El teléfono es requerido";
-            return false;
-        }
-        
-        if (telefono.Length != 10 || !Regex.IsMatch(telefono, @"^\d{10}$"))
-        {
-            return false;
-        }
+        mostrarConfirmacion = false;
+        accionConfirmar = null;
+    }
 
-        return true;
+    private async Task EliminarCliente(int id)
+    {
+        var response = await Http.DeleteAsync($"http://localhost:5240/api/clientes/{id}");
+        if (response.IsSuccessStatusCode)
+        {
+            await LoadClientes();
+            mostrarConfirmacion = false;
+        }
     }
 
     private string GetPlaceholderIdentificacion()
-    {
-        return clienteEditando.TipoIdentificacion switch
+        => clienteActual.TipoIdentificacion switch
         {
-            "CEDULA" => "Ej: 1234567890",
-            "RUC" => "Ej: 1234567890001",
-            "PASAPORTE" => "Ej: ABC123456",
-            _ => "Seleccione tipo de identificación"
+            "CEDULA" => "Ej: 1723456789",
+            "RUC" => "Ej: 1790012345001",
+            "PASAPORTE" => "Ej: X1234567",
+            _ => "Ingrese identificación"
         };
-    }
 
     private string GetInfoIdentificacion()
-    {
-        return clienteEditando.TipoIdentificacion switch
+        => clienteActual.TipoIdentificacion switch
         {
             "CEDULA" => "10 dígitos. Se validará con algoritmo del SRI",
-            "RUC" => "13 dígitos. Debe terminar en 001",
-            "PASAPORTE" => "Alfanumérico, entre 5 y 20 caracteres",
-            _ => "Seleccione el tipo de identificación primero"
+            "RUC" => "13 dígitos. Debe ser válido para facturación",
+            "PASAPORTE" => "Número de pasaporte",
+            _ => ""
         };
+
+    private void EditarCliente(Cliente cliente)
+    {
+        clienteActual = new Cliente
+        {
+            Id = cliente.Id,
+            TipoIdentificacion = cliente.TipoIdentificacion,
+            Identificacion = cliente.Identificacion,
+            NombreRazonSocial = cliente.NombreRazonSocial,
+            Direccion = cliente.Direccion,
+            Telefono = cliente.Telefono,
+            Correo = cliente.Correo
+        };
+        mostrarFormulario = true;
+        mensajeError = "";
+        mensajeExito = "";
     }
 
-    private string GetBadgeClass(string? tipo)
+    private string GetBadgeClass(string tipo)
     {
         return tipo switch
         {
             "CEDULA" => "bg-primary",
             "RUC" => "bg-success",
-            "PASAPORTE" => "bg-info",
+            "PASAPORTE" => "bg-warning text-dark",
             _ => "bg-secondary"
         };
     }
 
-    public class Cliente
+    private string GetTipoIdLabel(string tipo)
     {
-        public int Id { get; set; }
-
-        [Required(ErrorMessage = "El tipo de identificación es requerido")]
-        public string TipoIdentificacion { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "El nombre es requerido")]
-        [StringLength(200, MinimumLength = 3, ErrorMessage = "El nombre debe tener entre 3 y 200 caracteres")]
-        public string Nombre { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "La identificación es requerida")]
-        public string CedulaRuc { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "El teléfono es requerido")]
-        public string? Telefono { get; set; }
-
-        [Required(ErrorMessage = "El correo es requerido")]
-        [EmailAddress(ErrorMessage = "El formato del correo no es válido")]
-        public string Correo { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "La dirección es requerida")]
-        public string? Direccion { get; set; }
+        return tipo switch
+        {
+            "CEDULA" => "Cédula",
+            "RUC" => "RUC",
+            "PASAPORTE" => "Pasaporte",
+            _ => tipo
+        };
     }
+
+    private string ObtenerMensajeEliminarCliente(Cliente cliente)
+        => $"¿Desea eliminar permanentemente el cliente '{cliente.NombreRazonSocial}'?";
 }

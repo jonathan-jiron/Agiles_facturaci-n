@@ -9,5 +9,6 @@ namespace Domain.Entities
         
         // Relación con Lotes
         public List<Lote> Lotes { get; set; } = new List<Lote>();
+        public byte[]? RowVersion { get; set; }
     }
 }
