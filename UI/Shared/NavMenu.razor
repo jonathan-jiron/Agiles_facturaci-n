@@ -1,9 +1,50 @@
-<div class="sidebar">
-    <div class="nav-title">Facturación Electrónica</div>
-    <nav>
-        <NavLink href="/" class="nav-link" Match="NavLinkMatch.All">🏠 Inicio</NavLink>
-        <NavLink href="clientes" class="nav-link">👤 Clientes</NavLink>
-        <NavLink href="productos" class="nav-link">📦 Productos</NavLink>
-        <NavLink href="login" class="nav-link">🔐 Acceso</NavLink>
-    </nav>
-</div>
+@namespace UI.Shared
+@using Microsoft.AspNetCore.Components.Routing
+
+<nav class="sidenav">
+  <div class="brand">
+    <div class="logo">FZ</div>
+    <span class="title">Facturación</span>
+  </div>
+
+  <div class="menu">
+    <NavLink class="item" href="/" Match="NavLinkMatch.All">
+      <i class="fa-solid fa-gauge"></i>
+      <span>Dashboard</span>
+    </NavLink>
+
+    <NavLink class="item" href="/clientes" Match="NavLinkMatch.Prefix">
+      <i class="fa-solid fa-users"></i>
+      <span>Clientes</span>
+    </NavLink>
+
+    <NavLink class="item" href="/productos" Match="NavLinkMatch.Prefix">
+      <i class="fa-solid fa-box-open"></i>
+      <span>Productos</span>
+    </NavLink>
+  </div>
+
+  <div class="footer">
+    <small>v1.0</small>
+  </div>
+</nav>
+
+<style>
+.sidenav{padding:1rem .85rem;height:100%;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:.7rem;margin:.25rem .25rem 1.1rem}
+.brand .logo{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff}
+.brand .title{color:#fff;font-weight:700;letter-spacing:.4px}
+.menu{display:flex;flex-direction:column;gap:.25rem}
+.item{display:flex;align-items:center;gap:.8rem;color:rgba(255,255,255,.85);text-decoration:none;
+  padding:.62rem .8rem;border-radius:.7rem;position:relative;transition:transform .12s,background .2s}
+.item i{width:28px;text-align:center}
+.item:hover{background:rgba(255,255,255,.12);color:#fff;transform:translateX(2px)}
+.item.active{background:rgba(255,255,255,.22);color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.item.active::before{
+  content:"";position:absolute;inset:0 auto 0 0;width:4px;border-radius:3px;
+  background:linear-gradient(180deg,#8fd3f4,#84fab0)
+}
+.footer{margin-top:auto;padding:.5rem .75rem;color:rgba(255,255,255,.7);font-size:.75rem}
+
+</style>

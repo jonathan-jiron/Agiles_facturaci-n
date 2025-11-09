@@ -7,9 +7,8 @@
 [Rr]eleases/
 x64/
 x86/
-[Ww][Ii][Nn]32/
-[Aa][Rr][Mm]/
-[Aa][Rr][Mm]64/
+[Aa]rm/
+[Aa]rm64/
 bld/
 [Bb]in/
 [Oo]bj/
@@ -18,69 +17,63 @@ bld/
 
 # Visual Studio cache/options
 .vs/
-.vscode/
 *.rsuser
 *.suo
 *.user
 *.userosscache
 *.sln.docstates
 
-# Files built by Visual Studio
-*_i.c
-*_p.c
-*_h.h
-*.ilk
-*.meta
-*.obj
-*.iobj
-*.pch
-*.pdb
-*.ipdb
-*.pgc
-*.pgd
-*.rsp
-*.sbr
-*.tlb
-*.tli
-*.tlh
-*.tmp
-*.tmp_proj
-*_wpftmp.csproj
-*.log
-*.tlog
-*.vspscc
-*.vssscc
-.builds
-*.pidb
-*.svclog
-*.scc
+# Rider
+.idea/
+*.sln.iml
 
-# NuGet Packages
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# User-specific files
+*.userprefs
+
+# Mono auto generated files
+mono_crash.*
+
+# NuGet
 *.nupkg
 *.snupkg
-**/packages/*
-!**/packages/build/
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
 *.nuget.props
 *.nuget.targets
 project.lock.json
 project.fragment.lock.json
 artifacts/
 
-# ASP.NET Scaffolding
-ScaffoldingReadMe.txt
-
 # StyleCop
 StyleCopReport.xml
 
-# Files built by MSBuild
-[Bb]in/
-[Oo]bj/
-_UpgradeReport_Files/
-Backup*/
-UpgradeLog*.XML
-UpgradeLog*.htm
-ServiceFabricBackup/
-*.rptproj.bak
+# NCrunch
+_NCrunch_*
+.*crunch*.local.xml
+nCrunchTemp_*
+
+# Test Coverage
+*.coverage
+*.coveragexml
+*.cobertura.xml
+
+# Web publish
+PublishProfiles/
+*.Publish.xml
+*.pubxml
+*.publishproj
+
+# Azure
+*.azurePubxml
+*.pubxml.user
 
 # SQL Server files
 *.mdf
@@ -92,181 +85,87 @@ ServiceFabricBackup/
 *.bim.layout
 *.bim_*.settings
 *.rptproj.rsuser
-*- [Bb]ackup.rdl
-*- [Bb]ackup ([0-9]).rdl
-*- [Bb]ackup ([0-9][0-9]).rdl
 
 # Microsoft Fakes
 FakesAssemblies/
 
-# GhostDoc plugin
-*.GhostDoc.xml
-
-# Node.js Tools for Visual Studio
-.ntvs_analysis.dat
+# Node.js (si usas npm en futuro)
 node_modules/
+package-lock.json
+yarn.lock
 
-# Visual Studio 6 build log
-*.plg
-
-# Visual Studio 6 workspace
-*.opt
-
-# Visual Studio 6 auto-generated workspace
-*.vbw
-
-# Visual Studio 6 auto-generated project
-*.vbp
-
-# Visual Studio 6 workspace and project
-*.dsw
-*.dsp
-
-# Visual Studio LightSwitch
-**/*.HTMLClient/GeneratedArtifacts
-**/*.DesktopClient/GeneratedArtifacts
-**/*.DesktopClient/ModelManifest.xml
-**/*.Server/GeneratedArtifacts
-**/*.Server/ModelManifest.xml
-_Pvt_Extensions
-
-# Paket dependency manager
-.paket/paket.exe
-paket-files/
-
-# FAKE - F# Make
-.fake/
-
-# CodeRush personal settings
-.cr/personal
-
-# Python Tools for Visual Studio
+# Python (si agregas scripts)
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 
-# Cake - Uncomment if using
-# tools/**
-# !tools/packages.config
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
 
-# Tabs Studio
-*.tss
-
-# Telerik's JustMock
-*.jmconfig
-
-# BizTalk build output
-*.btp.cs
-*.btm.cs
-*.odx.cs
-*.xsd.cs
-
-# OpenCover UI analysis results
-OpenCover/
-
-# Azure Stream Analytics local run output
-ASALocalRun/
-
-# MSBuild Binary and Structured Log
-*.binlog
-
-# NVidia Nsight GPU debugger
-*.nvuser
-
-# MFractors (Xamarin productivity tool)
-.mfractor/
-
-# Local History for Visual Studio
-.localhistory/
-
-# Visual Studio History (VSHistory)
-.vshistory/
-
-# BeatPulse healthcheck temp db
-healthchecksdb
-
-# Backup folder for Package Reference Convert tool
-MigrationBackup/
-
-# Ionide (cross platform F# VS Code tools)
-.ionide/
-
-# Fody - auto-generated XML schema
-FodyWeavers.xsd
-
-# VS Code files for those working on multiple tools
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-*.code-workspace
-
-# Local History for Visual Studio Code
-.history/
-
-# Windows Installer files from build outputs
-*.cab
-*.msi
-*.msix
-*.msm
-*.msp
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
 
 # JetBrains Rider
-*.sln.iml
 .idea/
-*.DotSettings.user
+*.sln.iml
 
-## Archivos específicos de tu proyecto
+# Blazor específico
+wwwroot/css/app.css.map
+UI.styles.css
 
-# Configuración local (contraseñas, conexiones)
-appsettings.Development.json
-appsettings.Local.json
-**/appsettings.*.json
-!**/appsettings.json
-!**/appsettings.Production.json
+# Archivos de caché EF Core
+*.runtimeconfig.json
+*.deps.json
 
-# Secrets
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Secrets (IMPORTANTE)
+appsettings.*.json
+!appsettings.json
+!appsettings.Development.json
 secrets.json
 *.pfx
 *.p12
-
-# Certificados de firma digital SRI
 *.key
-*.crt
-*.cer
-*.p12
-Certificados/
+*.pem
 
-# Archivos temporales de Entity Framework
-**/Migrations/*.Designer.cs.backup
-**/Migrations/*.cs.backup
+# Blazor WebAssembly específico
+UI/bin/
+UI/obj/
+UI/wwwroot/_framework/
+WebAPI/bin/
+WebAPI/obj/
+Infrastructure/bin/
+Infrastructure/obj/
+Application/bin/
+Application/obj/
+Domain/bin/
+Domain/obj/
 
-# Archivos XML generados para el SRI
-ComprobantesGenerados/
-XMLGenerados/
-*.xml.signed
+# Archivos temporales de WebAssembly
+tmp-webcil/
+webcil/
+compressed/
+dotnet.*.js
+emcc-props.json
+blazor.boot.json
 
-# Logs específicos de la aplicación
-Logs/
-*.log
+# Static web assets
+staticwebassets/
+*.staticwebassets.runtime.json
+*.staticwebassets.endpoints.json
+*.staticwebassets.build.json
+*.staticwebassets.development.json
+*.dswa.cache.json
 
-# Archivos de respaldo
-*.bak
-*.backup
-
-# Archivos de caché
-.cache/
-*.cache
-
-# Archivos de sistema
-.DS_Store
-Thumbs.db
-Desktop.ini
-
-# Reportes y documentos temporales
-Reportes/Temp/
-*.tmp
-
-# Archivos de prueba
-TestResults/
-*.trx
+# Entity Framework
+Migrations/*.Designer.cs.bak
