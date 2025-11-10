@@ -13,6 +13,8 @@ Sistema de facturación electrónica con arquitectura Onion, autenticación JWT,
 ✅ Interfaz Blazor WASM responsive  
 ✅ Seed de datos iniciales  
 ✅ Migraciones de base de datos consolidadas  
+✅ Registro y visualización de actividad reciente (creación, edición y eliminación de clientes/productos)
+- Actividad reciente dinámica: muestra eventos reales de acciones sobre clientes y productos.
 
 ---
 
@@ -201,6 +203,16 @@ dotnet run
 | PrecioUnitario | decimal(18,2) | Precio por unidad |
 | FechaIngreso | datetime | Fecha de entrada al inventario |
 | FechaVencimiento | datetime | Fecha de vencimiento (opcional) |
+
+#### EventoActividad
+| Campo      | Tipo           | Descripción                        |
+|------------|----------------|------------------------------------|
+| Id         | int PK         | Autoincremental                    |
+| Titulo     | nvarchar(100)  | Tipo de evento (creado, editado...)|
+| Descripcion| nvarchar(250)  | Detalle del evento                 |
+| Icono      | nvarchar(50)   | Icono FontAwesome                  |
+| Color      | nvarchar(20)   | Color para UI                      |
+| Fecha      | datetime       | Fecha y hora del evento            |
 
 ### Datos iniciales (Seed)
 - **1 usuario**: `admin` / `admin123` (ROL: ADMIN)
