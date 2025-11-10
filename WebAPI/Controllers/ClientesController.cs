@@ -10,7 +10,11 @@ namespace WebAPI.Controllers;
 public class ClientesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
-    public ClientesController(ApplicationDbContext context) => _context = context;
+
+    public ClientesController(ApplicationDbContext context)
+    {
+        _context = context;
+    }
 
     // GET: api/clientes
     [HttpGet]
@@ -56,14 +60,23 @@ public class ClientesController : ControllerBase
 
     // POST: api/clientes
     [HttpPost]
-    public async Task<IActionResult> Post([FromBody] Cliente cliente)
+    public async Task<IActionResult> PostCliente(Cliente cliente)
     {
-        if (!ValidarIdentificacion(cliente.TipoIdentificacion, cliente.Identificacion))
-            return BadRequest("La identificación no tiene la longitud correcta para el tipo seleccionado.");
-
         _context.Clientes.Add(cliente);
         await _context.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetCliente), new { id = cliente.Id }, cliente);
+
+        // Registrar evento
+        _context.EventosActividad.Add(new EventoActividad
+        {
+            Titulo = "Nuevo cliente",
+            Descripcion = $"Cliente: {cliente.NombreRazonSocial} agregado.",
+            Icono = "fa-solid fa-user-plus",
+            Color = "#007bff",
+            Fecha = DateTime.Now
+        });
+        await _context.SaveChangesAsync();
+
+        return CreatedAtAction("GetCliente", new { id = cliente.Id }, cliente);
     }
 
     // PUT: api/clientes/5
@@ -85,6 +98,18 @@ public class ClientesController : ControllerBase
         clienteExistente.Correo = cliente.Correo;
 
         await _context.SaveChangesAsync();
+
+        // Registrar evento
+        _context.EventosActividad.Add(new EventoActividad
+        {
+            Titulo = "Cliente editado",
+            Descripcion = $"Cliente: {cliente.NombreRazonSocial} editado.",
+            Icono = "fa-solid fa-user-edit",
+            Color = "#17a2b8",
+            Fecha = DateTime.Now
+        });
+        await _context.SaveChangesAsync();
+
         return NoContent();
     }
 
@@ -97,6 +122,18 @@ public class ClientesController : ControllerBase
 
         _context.Clientes.Remove(cliente);
         await _context.SaveChangesAsync();
+
+        // Registrar evento
+        _context.EventosActividad.Add(new EventoActividad
+        {
+            Titulo = "Cliente eliminado",
+            Descripcion = $"Cliente: {cliente.NombreRazonSocial} eliminado.",
+            Icono = "fa-solid fa-user-minus",
+            Color = "#dc3545",
+            Fecha = DateTime.Now
+        });
+        await _context.SaveChangesAsync();
+
         return NoContent();
     }
 }

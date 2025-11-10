@@ -9,11 +9,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace Infrastructure.Data.Migrations
+namespace Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251108230343_AddUniqueIndex_Usuario_Username")]
-    partial class AddUniqueIndex_Usuario_Username
+    [Migration("20251110050111_AddEventoActividad")]
+    partial class AddEventoActividad
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -33,30 +33,32 @@ namespace Infrastructure.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("CedulaRuc")
+                    b.Property<string>("Correo")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Direccion")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("Identificacion")
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
-                    b.Property<string>("Correo")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Direccion")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<string>("Nombre")
+                    b.Property<string>("NombreRazonSocial")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<string>("Telefono")
-                        .IsRequired()
-                        .HasMaxLength(15)
-                        .HasColumnType("nvarchar(15)");
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<string>("TipoIdentificacion")
                         .IsRequired()
@@ -65,49 +67,84 @@ namespace Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Identificacion")
+                        .IsUnique();
+
                     b.ToTable("Clientes");
 
                     b.HasData(
                         new
                         {
                             Id = 1,
-                            CedulaRuc = "1234567890",
                             Correo = "juan.perez@email.com",
                             Direccion = "Av. Principal 123 y Secundaria, Quito",
-                            Nombre = "Juan Pérez García",
+                            Identificacion = "1234567890",
+                            NombreRazonSocial = "Juan Pérez García",
                             Telefono = "0999999999",
-                            TipoIdentificacion = "CEDULA"
+                            TipoIdentificacion = ""
                         },
                         new
                         {
                             Id = 2,
-                            CedulaRuc = "1234567890001",
                             Correo = "ventas@distrimartinez.com",
                             Direccion = "Calle Comercio 456, Edificio Blue, Guayaquil",
-                            Nombre = "DISTRIBUIDORA MARTINEZ CIA. LTDA.",
+                            Identificacion = "1234567890001",
+                            NombreRazonSocial = "DISTRIBUIDORA MARTINEZ CIA. LTDA.",
                             Telefono = "0988888888",
-                            TipoIdentificacion = "RUC"
+                            TipoIdentificacion = ""
                         },
                         new
                         {
                             Id = 3,
-                            CedulaRuc = "USA123456",
                             Correo = "john.smith@email.com",
                             Direccion = "Hotel Hilton, Habitación 305, Quito",
-                            Nombre = "John Smith",
+                            Identificacion = "USA123456",
+                            NombreRazonSocial = "John Smith",
                             Telefono = "0977777777",
-                            TipoIdentificacion = "PASAPORTE"
+                            TipoIdentificacion = ""
                         },
                         new
                         {
                             Id = 4,
-                            CedulaRuc = "0987654321",
                             Correo = "maria.lopez@email.com",
                             Direccion = "Urbanización Los Pinos, Mz 5 Villa 10, Cuenca",
-                            Nombre = "María Fernanda López Torres",
+                            Identificacion = "0987654321",
+                            NombreRazonSocial = "María Fernanda López Torres",
                             Telefono = "0966666666",
-                            TipoIdentificacion = "CEDULA"
+                            TipoIdentificacion = ""
                         });
+                });
+
+            modelBuilder.Entity("Domain.Entities.EventoActividad", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Icono")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("EventosActividad");
                 });
 
             modelBuilder.Entity("Domain.Entities.Lote", b =>
@@ -124,6 +161,9 @@ namespace Infrastructure.Data.Migrations
                     b.Property<DateTime>("FechaIngreso")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("FechaVencimiento")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("NumeroLote")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -138,6 +178,9 @@ namespace Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("NumeroLote")
+                        .IsUnique();
+
                     b.HasIndex("ProductoId");
 
                     b.ToTable("Lotes");
@@ -148,6 +191,7 @@ namespace Infrastructure.Data.Migrations
                             Id = 1,
                             Cantidad = 5,
                             FechaIngreso = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            FechaVencimiento = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             NumeroLote = "FAC-001-001-0001234",
                             PrecioUnitario = 850.00m,
                             ProductoId = 1
@@ -292,6 +336,11 @@ namespace Infrastructure.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.HasKey("Id");
 

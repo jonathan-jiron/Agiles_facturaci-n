@@ -1,6 +1,5 @@
 using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -85,5 +84,5 @@ app.Use(async (ctx, next) =>
 });
 
 // Seed admin
-await WebAPI.Seed.DbInitializer.InitializeAsync(app.Services);
+await DbInitializer.InitializeAsync(app.Services);
 app.Run();
