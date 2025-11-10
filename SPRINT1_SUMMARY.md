@@ -5,10 +5,19 @@
 - **Fin:** 23 de noviembre de 2025
 - **Duración:** 2 semanas
 
-## 🎯 Objetivo
-Implementar la arquitectura base del sistema con autenticación, gestión de clientes/productos y dashboard inicial.
+## 🎯 Objetivos Sprint 1 (Completados)
+✅ Arquitectura Onion implementada (Domain, Application, Infrastructure, WebAPI, UI)  
+✅ Conexión SQL Server con Entity Framework Core  
+✅ Autenticación con JWT (hash BCrypt, tokens con expiración)  
+✅ CRUD Clientes (Backend REST + UI Blazor)  
+✅ CRUD Productos con gestión por lotes  
+✅ Dashboard interactivo con métricas  
+✅ Registro y visualización de actividad reciente (creación, edición y eliminación de clientes/productos)  
+✅ Interfaz Blazor WASM responsive  
+✅ Seed de datos iniciales  
+✅ Migraciones de base de datos consolidadas
 
-## ✅ Historias completadas (5/5)
+## ✅ Historias completadas (6/6)
 
 ### PB-INF: Configurar arquitectura Onion + SQL Server (10h)
 - ✅ Estructura de carpetas Domain/Application/Infrastructure/WebAPI/UI
@@ -49,7 +58,7 @@ Implementar la arquitectura base del sistema con autenticación, gestión de cli
 | Indicador | Planificado | Real | Diferencia |
 |-----------|-------------|------|------------|
 | Horas | 64 h | ~64 h | 0% |
-| Historias | 5 | 5 | 100% completado |
+| Historias | 5 | 6 | 120% completado |
 | Bugs críticos | 0 objetivo | 0 | ✅ |
 | Cobertura tests | N/A | 0% | ⚠️ Pendiente S2 |
 
@@ -104,7 +113,6 @@ Ver [SPRINT2_PLANNING.md] para objetivos detallados.
 3. DTOs + AutoMapper
 4. Tests unitarios
 5. Refresh Token
-
 ---
 **Aprobado por:** [Product Owner]  
 **Fecha:** 23 de noviembre de 2025
