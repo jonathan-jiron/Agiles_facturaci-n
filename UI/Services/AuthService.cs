@@ -4,6 +4,7 @@ using Microsoft.JSInterop;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Components.Authorization;
 using System.IdentityModel.Tokens.Jwt;
+using Domain.Entities;
 
 namespace UI.Services;
 
@@ -12,12 +13,14 @@ public class AuthService
     private readonly HttpClient _http;
     private readonly IJSRuntime _js;
     private readonly AuthStateProvider _stateProvider;
+    private readonly ProductoService _productoService;
 
-    public AuthService(HttpClient http, IJSRuntime js, AuthenticationStateProvider authState)
+    public AuthService(HttpClient http, IJSRuntime js, AuthenticationStateProvider authState, ProductoService productoService)
     {
         _http = http;
         _js = js;
         _stateProvider = (AuthStateProvider)authState;
+        _productoService = productoService;
     }
 
     public async Task<(bool ok, string? error)> LoginAsync(string username, string password)
@@ -48,13 +51,6 @@ public class AuthService
         await _js.InvokeVoidAsync("localStorage.setItem", "authToken", token);
         await _stateProvider.MarkUserAuthenticatedAsync(token);
         return (true, null);
-    }
-
-    // Wrapper opcional si tienes llamadas antiguas
-    public async Task<bool> Login(string username, string password)
-    {
-        var (ok, _) = await LoginAsync(username, password);
-        return ok;
     }
 
     public async Task LogoutAsync()
@@ -89,5 +85,26 @@ public class AuthService
         var username = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name || c.Type == "unique_name")?.Value ?? "";
         var rol = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role || c.Type == "role")?.Value ?? "";
         return new UsuarioInfo { Username = username, Rol = rol };
+    }
+
+    public async Task<int> GetProductosCountAsync()
+    {
+        var productos = await _productoService.GetAllAsync();
+        return productos.Count;
+    }
+
+    public async Task<int> GetClientesCountAsync()
+    {
+        var resp = await _http.GetAsync("api/clientes");
+        resp.EnsureSuccessStatusCode();
+        var clientes = await resp.Content.ReadFromJsonAsync<List<Cliente>>() ?? new();
+        return clientes.Count;
+    }
+
+    public async Task<List<EventoActividad>> GetActividadRecienteAsync()
+    {
+        var resp = await _http.GetAsync("api/actividad");
+        resp.EnsureSuccessStatusCode();
+        return await resp.Content.ReadFromJsonAsync<List<EventoActividad>>() ?? new();
     }
 }

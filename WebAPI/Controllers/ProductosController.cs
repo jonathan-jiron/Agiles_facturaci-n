@@ -61,6 +61,18 @@ namespace WebAPI.Controllers
 
             _db.Productos.Add(entity);
             await _db.SaveChangesAsync();
+
+            // Registrar evento
+            _db.EventosActividad.Add(new EventoActividad
+            {
+                Titulo = "Producto creado",
+                Descripcion = $"Producto: {entity.Nombre} creado.",
+                Icono = "fa-solid fa-box",
+                Color = "#28a745",
+                Fecha = DateTime.Now
+            });
+            await _db.SaveChangesAsync();
+
             return CreatedAtAction(nameof(Get), new { id = entity.Id }, null);
         }
 
@@ -84,6 +96,18 @@ namespace WebAPI.Controllers
             }).ToList() ?? new();
 
             await _db.SaveChangesAsync();
+
+            // Registrar evento
+            _db.EventosActividad.Add(new EventoActividad
+            {
+                Titulo = "Producto editado",
+                Descripcion = $"Producto: {prod.Nombre} editado.",
+                Icono = "fa-solid fa-box-open",
+                Color = "#17a2b8",
+                Fecha = DateTime.Now
+            });
+            await _db.SaveChangesAsync();
+
             return NoContent();
         }
 
@@ -96,6 +120,18 @@ namespace WebAPI.Controllers
             _db.Lotes.RemoveRange(prod.Lotes);
             _db.Productos.Remove(prod);
             await _db.SaveChangesAsync();
+
+            // Registrar evento
+            _db.EventosActividad.Add(new EventoActividad
+            {
+                Titulo = "Producto eliminado",
+                Descripcion = $"Producto: {prod.Nombre} eliminado.",
+                Icono = "fa-solid fa-box",
+                Color = "#dc3545",
+                Fecha = DateTime.Now
+            });
+            await _db.SaveChangesAsync();
+
             return NoContent();
         }
     }

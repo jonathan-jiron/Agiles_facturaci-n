@@ -1,6 +1,7 @@
 @page "/"
 @attribute [Authorize]
 @layout MainLayout
+@using Domain.Entities
 
 <PageTitle>Dashboard - Sistema de Facturación</PageTitle>
 
@@ -28,7 +29,7 @@
                     <i class="fas fa-users"></i>
                 </div>
                 <div class="stat-content">
-                    <h3 class="stat-number">@totalClientes</h3>
+                    <span class="fs-1 fw-bold me-3">@totalClientes</span>
                     <p class="stat-label">Clientes Registrados</p>
                 </div>
                 <div class="stat-footer">
@@ -44,7 +45,7 @@
                     <i class="fas fa-box"></i>
                 </div>
                 <div class="stat-content">
-                    <h3 class="stat-number">@totalProductos</h3>
+                    <span class="fs-1 fw-bold me-3">@totalProductos</span>
                     <p class="stat-label">Productos en Inventario</p>
                 </div>
                 <div class="stat-footer">
@@ -60,12 +61,12 @@
                     <i class="fas fa-file-invoice-dollar"></i>
                 </div>
                 <div class="stat-content">
-                    <h3 class="stat-number">156</h3>
+                    <h3 class="stat-number">**</h3>
                     <p class="stat-label">Facturas Emitidas</p>
                 </div>
                 <div class="stat-footer">
                     <i class="fas fa-arrow-up text-success me-1"></i>
-                    <span class="text-success">+24%</span> vs. mes anterior
+                    <span class="text-success">+**%</span> vs. mes anterior
                 </div>
             </div>
         </div>
@@ -76,12 +77,12 @@
                     <i class="fas fa-dollar-sign"></i>
                 </div>
                 <div class="stat-content">
-                    <h3 class="stat-number">$45,230.50</h3>
+                    <h3 class="stat-number">$**,**.**</h3>
                     <p class="stat-label">Ventas del Mes</p>
                 </div>
                 <div class="stat-footer">
                     <i class="fas fa-arrow-up text-success me-1"></i>
-                    <span class="text-success">+18%</span> vs. mes anterior
+                    <span class="text-success">+**%</span> vs. mes anterior
                 </div>
             </div>
         </div>
@@ -176,24 +177,16 @@
                     </h5>
                 </div>
                 <div class="info-body">
-                    <div class="activity-item">
-                        <div class="activity-icon bg-primary-light">
-                            <i class="fas fa-user-plus text-primary"></i>
+                    @foreach (var actividad in actividades)
+                    {
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="@actividad.Icono fa-2x me-3" style="color:@actividad.Color"></i>
+                            <div>
+                                <div class="fw-bold">@actividad.Titulo</div>
+                                <div class="text-muted small">@actividad.Descripcion</div>
+                            </div>
                         </div>
-                        <div class="activity-content">
-                            <p class="mb-0"><strong>Nuevo cliente</strong></p>
-                            <small class="text-muted">Hace 2 horas</small>
-                        </div>
-                    </div>
-                    <div class="activity-item">
-                        <div class="activity-icon bg-success-light">
-                            <i class="fas fa-box text-success"></i>
-                        </div>
-                        <div class="activity-content">
-                            <p class="mb-0"><strong>Producto actualizado</strong></p>
-                            <small class="text-muted">Hace 5 horas</small>
-                        </div>
-                    </div>
+                    }
                 </div>
             </div>
         </div>
@@ -560,7 +553,18 @@
     }
 </style>
 
+@inject ProductoService productoService
+@inject AuthService authService
+
 @code {
-    private int totalClientes = 4;
-    private int totalProductos = 10;
+    private int totalClientes;
+    private int totalProductos;
+    private List<EventoActividad> actividades = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        totalClientes = await authService.GetClientesCountAsync();
+        totalProductos = await productoService.GetProductosCountAsync();
+        actividades = await productoService.GetActividadRecienteAsync();
+    }
 }

@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using Domain.Entities;
 
 namespace UI.Services
 {
@@ -7,11 +8,11 @@ namespace UI.Services
         private readonly HttpClient _http;
         public ProductoService(HttpClient http) => _http = http;
 
-        public async Task<List<ProductoDto>> GetAllAsync()
+        public async Task<List<Producto>> GetAllAsync()
         {
             var resp = await _http.GetAsync("api/productos");
             resp.EnsureSuccessStatusCode();
-            return await resp.Content.ReadFromJsonAsync<List<ProductoDto>>() ?? new();
+            return await resp.Content.ReadFromJsonAsync<List<Producto>>() ?? new();
         }
 
         public async Task<(bool ok,string? error)> CreateAsync(ProductoCreate model)
@@ -22,12 +23,17 @@ namespace UI.Services
             return (false,body);
         }
 
-        public class ProductoDto
+        public async Task<int> GetProductosCountAsync()
         {
-            public int Id { get; set; }
-            public string Codigo { get; set; } = "";
-            public string Nombre { get; set; } = "";
-            public string? Descripcion { get; set; }
+            var productos = await GetAllAsync();
+            return productos.Count;
+        }
+
+        public async Task<List<EventoActividad>> GetActividadRecienteAsync()
+        {
+            var resp = await _http.GetAsync("api/actividad");
+            resp.EnsureSuccessStatusCode();
+            return await resp.Content.ReadFromJsonAsync<List<EventoActividad>>() ?? new();
         }
 
         public class ProductoCreate

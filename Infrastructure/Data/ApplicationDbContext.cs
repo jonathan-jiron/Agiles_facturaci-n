@@ -5,12 +5,16 @@ namespace Infrastructure.Data
 {
     public class ApplicationDbContext : DbContext
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+            : base(options)
+        {
+        }
 
         public DbSet<Cliente> Clientes { get; set; }
         public DbSet<Producto> Productos { get; set; }
         public DbSet<Lote> Lotes { get; set; }
         public DbSet<Usuario> Usuarios { get; set; }
+        public DbSet<EventoActividad> EventosActividad { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -83,6 +87,7 @@ namespace Infrastructure.Data
                 entity.Property(l => l.NumeroLote)
                       .IsRequired()
                       .HasMaxLength(100);
+                entity.HasIndex(l => l.NumeroLote).IsUnique(); // Índice único
                 entity.Property(l => l.Cantidad)
                       .IsRequired();
                 entity.Property(l => l.PrecioUnitario)
@@ -90,6 +95,13 @@ namespace Infrastructure.Data
                       .IsRequired();
                 entity.Property(l => l.FechaIngreso)
                       .IsRequired();
+                entity.Property(l => l.FechaVencimiento);
+
+                // Relación con Producto
+                entity.HasOne(l => l.Producto)
+                      .WithMany(p => p.Lotes)
+                      .HasForeignKey(l => l.ProductoId)
+                      .OnDelete(DeleteBehavior.Cascade);
             });
 
             // Configuración Usuario
@@ -138,7 +150,7 @@ namespace Infrastructure.Data
 
             // Lotes
             modelBuilder.Entity<Lote>().HasData(
-                new Lote { Id = 1,  NumeroLote = "FAC-001-001-0001234", ProductoId = 1, Cantidad = 5,  PrecioUnitario = 850.00m, FechaIngreso = fechaActual },
+                new Lote { Id = 1,  NumeroLote = "FAC-001-001-0001234", ProductoId = 1, Cantidad = 5,  PrecioUnitario = 850.00m, FechaIngreso = fechaActual, FechaVencimiento = fechaActual.AddYears(1) },
                 new Lote { Id = 2,  NumeroLote = "FAC-001-001-0001890", ProductoId = 1, Cantidad = 3,  PrecioUnitario = 870.00m, FechaIngreso = fechaActual },
                 new Lote { Id = 3,  NumeroLote = "FAC-002-002-0002345", ProductoId = 2, Cantidad = 50, PrecioUnitario = 15.00m,  FechaIngreso = fechaActual },
                 new Lote { Id = 4,  NumeroLote = "FAC-002-002-0002890", ProductoId = 2, Cantidad = 30, PrecioUnitario = 18.00m,  FechaIngreso = fechaActual },
