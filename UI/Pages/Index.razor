@@ -1,8 +1,570 @@
 @page "/"
+@attribute [Authorize]
+@layout MainLayout
+@using Domain.Entities
 
-<h3>Bienvenido al Sistema de Facturación Electrónica</h3>
-<p>Selecciona una opción del menú lateral para comenzar.</p>
+<PageTitle>Dashboard - Sistema de Facturación</PageTitle>
 
-<div class="alert alert-info mt-3">
-    <strong>💡 Consejo:</strong> Puedes navegar entre Clientes, Productos y Acceso usando el menú.
+<div class="dashboard-container">
+    <div class="welcome-banner">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-5 fw-bold text-primary">
+                    <i class="fas fa-chart-line me-3"></i>Dashboard
+                </h1>
+                <p class="lead text-muted">Bienvenido al Sistema de Facturación Electrónica</p>
+                <p class="text-muted mb-0">
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    @DateTime.Now.ToString("dddd, dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("es-EC"))
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tarjetas de Estadísticas -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card stat-card-blue">
+                <div class="stat-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="fs-1 fw-bold me-3">@totalClientes</span>
+                    <p class="stat-label">Clientes Registrados</p>
+                </div>
+                <div class="stat-footer">
+                    <i class="fas fa-arrow-up text-success me-1"></i>
+                    <span class="text-success">+12%</span> vs. mes anterior
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="stat-card stat-card-green">
+                <div class="stat-icon">
+                    <i class="fas fa-box"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="fs-1 fw-bold me-3">@totalProductos</span>
+                    <p class="stat-label">Productos en Inventario</p>
+                </div>
+                <div class="stat-footer">
+                    <i class="fas fa-arrow-up text-success me-1"></i>
+                    <span class="text-success">+8%</span> vs. mes anterior
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="stat-card stat-card-orange">
+                <div class="stat-icon">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number">**</h3>
+                    <p class="stat-label">Facturas Emitidas</p>
+                </div>
+                <div class="stat-footer">
+                    <i class="fas fa-arrow-up text-success me-1"></i>
+                    <span class="text-success">+**%</span> vs. mes anterior
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="stat-card stat-card-purple">
+                <div class="stat-icon">
+                    <i class="fas fa-dollar-sign"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-number">$**,**.**</h3>
+                    <p class="stat-label">Ventas del Mes</p>
+                </div>
+                <div class="stat-footer">
+                    <i class="fas fa-arrow-up text-success me-1"></i>
+                    <span class="text-success">+**%</span> vs. mes anterior
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Accesos Rápidos -->
+    <div class="section-header mb-4">
+        <h4 class="fw-bold text-dark">
+            <i class="fas fa-bolt me-2 text-warning"></i>Accesos Rápidos
+        </h4>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-6 col-lg-3">
+            <a href="/clientes" class="quick-access-card">
+                <div class="qa-icon qa-icon-blue">
+                    <i class="fas fa-users"></i>
+                </div>
+                <h5 class="qa-title">Gestión de Clientes</h5>
+                <p class="qa-description">Administra tu cartera de clientes</p>
+                <span class="qa-arrow">→</span>
+            </a>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+            <a href="/productos" class="quick-access-card">
+                <div class="qa-icon qa-icon-green">
+                    <i class="fas fa-box"></i>
+                </div>
+                <h5 class="qa-title">Gestión de Productos</h5>
+                <p class="qa-description">Control de inventario y lotes</p>
+                <span class="qa-arrow">→</span>
+            </a>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+            <div class="quick-access-card" style="cursor: not-allowed; opacity: 0.6;">
+                <div class="qa-icon qa-icon-orange">
+                    <i class="fas fa-file-invoice"></i>
+                </div>
+                <h5 class="qa-title">Nueva Factura</h5>
+                <p class="qa-description">Emitir factura electrónica</p>
+                <span class="badge bg-warning text-dark">Próximamente</span>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+            <div class="quick-access-card" style="cursor: not-allowed; opacity: 0.6;">
+                <div class="qa-icon qa-icon-purple">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <h5 class="qa-title">Reportes</h5>
+                <p class="qa-description">Análisis y estadísticas</p>
+                <span class="badge bg-warning text-dark">Próximamente</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información Importante -->
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="info-card">
+                <div class="info-header">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-info-circle text-primary me-2"></i>
+                        Información del Sistema
+                    </h5>
+                </div>
+                <div class="info-body">
+                    <div class="alert alert-info border-0 mb-3">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Sistema Integrado:</strong> Conectado con la API del SRI Ecuador
+                    </div>
+                    <div class="alert alert-success border-0 mb-3">
+                        <i class="fas fa-shield-alt me-2"></i>
+                        <strong>Seguridad:</strong> Autenticación JWT activa
+                    </div>
+                    <div class="alert alert-warning border-0 mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Recordatorio:</strong> Mantén actualizados tus datos de clientes
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="info-card">
+                <div class="info-header">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-clock text-success me-2"></i>
+                        Actividad Reciente
+                    </h5>
+                </div>
+                <div class="info-body">
+                    @foreach (var actividad in actividades)
+                    {
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="@actividad.Icono fa-2x me-3" style="color:@actividad.Color"></i>
+                            <div>
+                                <div class="fw-bold">@actividad.Titulo</div>
+                                <div class="text-muted small">@actividad.Descripcion</div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+    .dashboard-container {
+        padding: 2rem;
+        min-height: 100vh;
+    }
+
+    .welcome-banner {
+        background: white;
+        border-radius: 20px;
+        padding: 2.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.75rem;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        transition: transform 0.3s, box-shadow 0.3s;
+        border-left: 5px solid;
+        height: 100%;
+        position: relative;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+    }
+
+    .stat-card-blue { border-left-color: #667eea; }
+    .stat-card-green { border-left-color: #48bb78; }
+    .stat-card-orange { border-left-color: #f6ad55; }
+    .stat-card-purple { border-left-color: #9f7aea; }
+
+    .stat-icon {
+        font-size: 2.5rem;
+        opacity: 0.2;
+        position: absolute;
+        right: 20px;
+        top: 20px;
+    }
+
+    .stat-card-blue .stat-icon { color: #667eea; }
+    .stat-card-green .stat-icon { color: #48bb78; }
+    .stat-card-orange .stat-icon { color: #f6ad55; }
+    .stat-card-purple .stat-icon { color: #9f7aea; }
+
+    .stat-content {
+        position: relative;
+        z-index: 1;
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        color: #718096;
+        font-size: 0.95rem;
+        margin-bottom: 1rem;
+    }
+
+    .stat-footer {
+        font-size: 0.85rem;
+        color: #a0aec0;
+        padding-top: 1rem;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .section-header {
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .quick-access-card {
+        display: block;
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        text-decoration: none;
+        color: inherit;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s;
+        position: relative;
+        overflow: hidden;
+        height: 100%;
+    }
+
+    .quick-access-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .qa-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        margin-bottom: 1.25rem;
+        color: white;
+    }
+
+    .qa-icon-blue { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .qa-icon-green { background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); }
+    .qa-icon-orange { background: linear-gradient(135deg, #f6ad55 0%, #ed8936 100%); }
+    .qa-icon-purple { background: linear-gradient(135deg, #9f7aea 0%, #805ad5 100%); }
+
+    .qa-title {
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 0.75rem;
+        font-size: 1.1rem;
+    }
+
+    .qa-description {
+        color: #718096;
+        font-size: 0.9rem;
+        margin-bottom: 0;
+    }
+
+    .qa-arrow {
+        position: absolute;
+        right: 20px;
+        bottom: 20px;
+        font-size: 1.5rem;
+        color: #cbd5e0;
+        transition: all 0.3s;
+    }
+
+    .quick-access-card:hover .qa-arrow {
+        right: 15px;
+        color: #667eea;
+    }
+
+    .info-card {
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        height: 100%;
+    }
+
+    .info-header {
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        padding: 1.5rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .info-body {
+        padding: 1.5rem;
+    }
+
+    .activity-item {
+        display: flex;
+        gap: 1rem;
+        padding: 1rem 0;
+        border-bottom: 1px solid #f7fafc;
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .bg-primary-light { background: rgba(102, 126, 234, 0.1); }
+    .bg-success-light { background: rgba(72, 187, 120, 0.1); }
+
+    .activity-content {
+        flex: 1;
+    }
+
+    .activity-content p {
+        font-size: 0.9rem;
+        color: #2d3748;
+    }
+
+    .activity-content small {
+        font-size: 0.8rem;
+    }
+
+    .nav-menu {
+        padding: 1rem 0;
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 120px);
+    }
+
+    .nav-section {
+        margin-bottom: 2rem;
+    }
+
+    .nav-section-title {
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        padding: 0 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .nav-item {
+        display: flex;
+        align-items: center;
+        padding: 0.85rem 1.5rem;
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+        transition: all 0.3s;
+        position: relative;
+        margin: 0.25rem 0.75rem;
+        border-radius: 12px;
+    }
+
+    .nav-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        transform: translateX(5px);
+    }
+
+    .nav-item.active {
+        background: rgba(255, 255, 255, 0.15);
+        color: white;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .nav-item.active .nav-indicator {
+        opacity: 1;
+    }
+
+    .nav-icon {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        margin-right: 1rem;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+        transition: all 0.3s;
+    }
+
+    .nav-item:hover .nav-icon,
+    .nav-item.active .nav-icon {
+        background: rgba(255, 255, 255, 0.2);
+        transform: scale(1.1);
+    }
+
+    .nav-text {
+        flex: 1;
+        font-size: 0.95rem;
+        font-weight: 500;
+    }
+
+    .nav-indicator {
+        width: 4px;
+        height: 20px;
+        background: white;
+        border-radius: 2px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        position: absolute;
+        right: 0;
+    }
+
+    .nav-badge {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        font-size: 0.65rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 6px;
+        font-weight: 600;
+    }
+
+    .nav-item-disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .nav-item-disabled:hover {
+        transform: none;
+        background: transparent;
+    }
+
+    .nav-footer {
+        margin-top: auto;
+        padding: 1rem 1.5rem;
+    }
+
+    .nav-footer-card {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .nav-footer-icon {
+        font-size: 1.5rem;
+        color: white;
+        opacity: 0.8;
+    }
+
+    .nav-footer-content {
+        flex: 1;
+    }
+
+    .nav-footer-title {
+        color: white;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 0.15rem;
+    }
+
+    .nav-footer-text {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.75rem;
+    }
+
+    @@media (max-width: 768px) {
+        .dashboard-container {
+            padding: 1rem;
+        }
+
+        .welcome-banner {
+            padding: 1.5rem;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+        }
+
+        .nav-text {
+            font-size: 0.9rem;
+        }
+
+        .nav-badge {
+            font-size: 0.6rem;
+            padding: 0.2rem 0.4rem;
+        }
+    }
+</style>
+
+@inject ProductoService productoService
+@inject AuthService authService
+
+@code {
+    private int totalClientes;
+    private int totalProductos;
+    private List<EventoActividad> actividades = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        totalClientes = await authService.GetClientesCountAsync();
+        totalProductos = await productoService.GetProductosCountAsync();
+        actividades = await productoService.GetActividadRecienteAsync();
+    }
+}

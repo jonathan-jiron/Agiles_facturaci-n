@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Infrastructure.Data;
-using Domain.Entities;
+using Infrastructure.Data;     // ApplicationDbContext
+using Domain.Entities;         // Producto, Lote
 
 namespace WebAPI.Controllers
 {
@@ -9,66 +9,160 @@ namespace WebAPI.Controllers
     [Route("api/[controller]")]
     public class ProductosController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
-        public ProductosController(ApplicationDbContext context) => _context = context;
+        private readonly ApplicationDbContext _db;
+        public ProductosController(ApplicationDbContext db) => _db = db;
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<ActionResult<IEnumerable<ProductoDto>>> Get()
         {
-            var productos = await _context.Productos.ToListAsync();
-            return Ok(productos);
+            var data = await _db.Productos
+                .AsNoTracking()
+                .Include(p => p.Lotes)
+                .OrderBy(p => p.Id)
+                .Select(p => new ProductoDto
+                {
+                    Id = p.Id,
+                    Codigo = p.Codigo,
+                    Nombre = p.Nombre,
+                    Descripcion = p.Descripcion,
+                    Lotes = p.Lotes.Select(l => new LoteDto
+                    {
+                        Id = l.Id,
+                        NumeroLote = l.NumeroLote,
+                        Cantidad = l.Cantidad,
+                        PrecioUnitario = l.PrecioUnitario
+                    }).ToList()
+                })
+                .ToListAsync();
+
+            return Ok(data);
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create(Producto producto)
+        public async Task<ActionResult> Post([FromBody] ProductoCreateDto dto)
         {
-            _context.Productos.Add(producto);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetAll), new { id = producto.Id }, producto);
-        }
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, Producto producto)
-        {
-            if (id != producto.Id) return BadRequest();
-            _context.Entry(producto).State = EntityState.Modified;
-            await _context.SaveChangesAsync();
-            return NoContent();
-        }
+            var exists = await _db.Productos.AnyAsync(x => x.Codigo == dto.Codigo);
+            if (exists) return Conflict("El código ya existe.");
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            var producto = await _context.Productos.FindAsync(id);
-            if (producto == null) return NotFound();
-            _context.Productos.Remove(producto);
-            await _context.SaveChangesAsync();
-            return NoContent();
-        }
-
-        // 🔹 Lógica FIFO: salida de productos
-        [HttpPost("{id}/salida")]
-        public async Task<IActionResult> SalidaProducto(int id, int cantidad)
-        {
-            var lotes = await _context.Lotes
-                .Where(l => l.ProductoId == id && l.Cantidad > 0)
-                .OrderBy(l => l.FechaIngreso) // FIFO: primero en entrar, primero en salir
-                .ToListAsync();
-
-            if (!lotes.Any()) return NotFound("No hay lotes disponibles.");
-
-            int restante = cantidad;
-            foreach (var lote in lotes)
+            var entity = new Producto
             {
-                if (restante <= 0) break;
-                int usar = Math.Min(lote.Cantidad, restante);
-                lote.Cantidad -= usar;
-                restante -= usar;
-            }
+                Codigo = dto.Codigo,
+                Nombre = dto.Nombre,
+                Descripcion = dto.Descripcion,
+                Lotes = dto.Lotes?.Select(l => new Lote
+                {
+                    NumeroLote = l.NumeroLote,
+                    Cantidad = l.Cantidad,
+                    PrecioUnitario = l.PrecioUnitario
+                }).ToList() ?? new()
+            };
 
-            await _context.SaveChangesAsync();
-            return Ok($"Salida de {cantidad} unidades del producto {id} realizada con FIFO.");
+            _db.Productos.Add(entity);
+            await _db.SaveChangesAsync();
+
+            // Registrar evento
+            _db.EventosActividad.Add(new EventoActividad
+            {
+                Titulo = "Producto creado",
+                Descripcion = $"Producto: {entity.Nombre} creado.",
+                Icono = "fa-solid fa-box",
+                Color = "#28a745",
+                Fecha = DateTime.Now
+            });
+            await _db.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(Get), new { id = entity.Id }, null);
         }
+
+        [HttpPut("{id:int}")]
+        public async Task<ActionResult> Put(int id, [FromBody] ProductoCreateDto dto)
+        {
+            var prod = await _db.Productos.Include(p => p.Lotes).FirstOrDefaultAsync(p => p.Id == id);
+            if (prod is null) return NotFound();
+
+            prod.Codigo = dto.Codigo;
+            prod.Nombre = dto.Nombre;
+            prod.Descripcion = dto.Descripcion;
+
+            // Reemplazar lotes (simple y seguro)
+            _db.Lotes.RemoveRange(prod.Lotes);
+            prod.Lotes = dto.Lotes?.Select(l => new Lote
+            {
+                NumeroLote = l.NumeroLote,
+                Cantidad = l.Cantidad,
+                PrecioUnitario = l.PrecioUnitario
+            }).ToList() ?? new();
+
+            await _db.SaveChangesAsync();
+
+            // Registrar evento
+            _db.EventosActividad.Add(new EventoActividad
+            {
+                Titulo = "Producto editado",
+                Descripcion = $"Producto: {prod.Nombre} editado.",
+                Icono = "fa-solid fa-box-open",
+                Color = "#17a2b8",
+                Fecha = DateTime.Now
+            });
+            await _db.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        [HttpDelete("{id:int}")]
+        public async Task<ActionResult> Delete(int id)
+        {
+            var prod = await _db.Productos.Include(p => p.Lotes).FirstOrDefaultAsync(p => p.Id == id);
+            if (prod is null) return NotFound();
+
+            _db.Lotes.RemoveRange(prod.Lotes);
+            _db.Productos.Remove(prod);
+            await _db.SaveChangesAsync();
+
+            // Registrar evento
+            _db.EventosActividad.Add(new EventoActividad
+            {
+                Titulo = "Producto eliminado",
+                Descripcion = $"Producto: {prod.Nombre} eliminado.",
+                Icono = "fa-solid fa-box",
+                Color = "#dc3545",
+                Fecha = DateTime.Now
+            });
+            await _db.SaveChangesAsync();
+
+            return NoContent();
+        }
+    }
+
+    public class ProductoDto
+    {
+        public int Id { get; set; }
+        public string Codigo { get; set; } = "";
+        public string Nombre { get; set; } = "";
+        public string? Descripcion { get; set; }
+        public List<LoteDto> Lotes { get; set; } = new();
+    }
+    public class LoteDto
+    {
+        public int Id { get; set; }
+        public string NumeroLote { get; set; } = "";
+        public int Cantidad { get; set; }
+        public decimal PrecioUnitario { get; set; }
+    }
+    public class ProductoCreateDto
+    {
+        public string Codigo { get; set; } = "";
+        public string Nombre { get; set; } = "";
+        public string? Descripcion { get; set; }
+        public List<LoteCreateDto> Lotes { get; set; } = new();
+    }
+    public class LoteCreateDto
+    {
+        public string NumeroLote { get; set; } = "";
+        public int Cantidad { get; set; }
+        public decimal PrecioUnitario { get; set; }
     }
 }
 

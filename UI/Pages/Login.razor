@@ -1,64 +1,104 @@
 @page "/login"
-@inject HttpClient Http
-@inject NavigationManager NavManager
+@layout EmptyLayout
+@using UI.Services
+@using System.ComponentModel.DataAnnotations
+@inject AuthService AuthService
+@inject NavigationManager Navigation
 
-<h3 class="mb-4 text-center"><i class="fa-solid fa-lock me-2"></i>Inicio de Sesión</h3>
+<div class="login-layout">
+    <div class="login-left">
+        <div class="login-card">
+            <div class="login-card-body">
+                <div class="login-header text-center mb-4">
+                    <div class="login-icon mb-3">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                    </div>
+                    <h2 class="login-title mb-2">Sistema de Facturación</h2>
+                    <p class="login-subtitle mb-0">Integración con SRI Ecuador</p>
+                </div>
 
-<div class="card shadow p-4" style="max-width: 400px; margin:auto;">
-    <EditForm Model="@usuario" OnValidSubmit="IniciarSesion">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>Error:</strong> @errorMessage
+                        <button type="button" class="btn-close" @onclick="() => errorMessage = string.Empty"></button>
+                    </div>
+                }
 
-        <div class="mb-3">
-            <label class="form-label">Usuario</label>
-            <InputText class="form-control" @bind-Value="usuario.NombreUsuario" required />
+                <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+                    <DataAnnotationsValidator />
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            <i class="fas fa-user me-2"></i>Usuario
+                        </label>
+                        <InputText @bind-Value="loginModel.Username" class="form-control"
+                            placeholder="Ingrese su usuario" />
+                        <ValidationMessage For="@(() => loginModel.Username)" class="text-danger small" />
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">
+                            <i class="fas fa-lock me-2"></i>Contraseña
+                        </label>
+                        <InputText @bind-Value="loginModel.Password" type="password" class="form-control"
+                            placeholder="Ingrese su contraseña" />
+                        <ValidationMessage For="@(() => loginModel.Password)" class="text-danger small" />
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100" disabled="@isLoading">
+                        @(isLoading ? "Ingresando..." : "Iniciar Sesión")
+                    </button>
+                </EditForm>
+
+                <div class="login-footer mt-5 pt-4 border-top">
+                    <div class="test-credentials text-center">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Credenciales de prueba:</strong><br />
+                        Usuario: <code>admin</code> | Contraseña: <code>admin123</code>
+                    </div>
+                </div>
+            </div>
         </div>
-
-        <div class="mb-3">
-            <label class="form-label">Contraseña</label>
-            <InputText class="form-control" @bind-Value="usuario.Contrasena" type="password" required />
+    </div>
+    <div class="login-right">
+        <div class="login-image-overlay">
+            <img src="img/loginimage.jpg" alt="Fondo" class="login-bg-img" />
+            <div class="login-bg-filter"></div>
         </div>
-
-        <button class="btn btn-primary w-100" type="submit">Ingresar</button>
-    </EditForm>
-
-    @if (!string.IsNullOrEmpty(mensaje))
-    {
-        <div class="alert alert-info mt-3">@mensaje</div>
-    }
+    </div>
 </div>
 
 @code {
-    private Usuario usuario = new();
-    private string? mensaje;
+    private LoginModel loginModel = new();
+    private string errorMessage = string.Empty;
+    private bool isLoading = false;
 
-    private async Task IniciarSesion()
+    private async Task HandleLogin()
     {
-        try
-        {
-            // Usa la base address configurada en Program.cs
-            var response = await Http.PostAsJsonAsync("api/auth/login", usuario);
+        isLoading = true;
+        errorMessage = string.Empty;
 
-            if (response.IsSuccessStatusCode)
-            {
-                mensaje = "✅ Acceso concedido. Redirigiendo...";
-                await Task.Delay(1000);
-                NavManager.NavigateTo("/");
-            }
-            else
-            {
-                mensaje = "❌ Usuario o contraseña incorrectos.";
-            }
-        }
-        catch (Exception ex)
+        var (ok, error) = await AuthService.LoginAsync(loginModel.Username, loginModel.Password);
+
+        isLoading = false;
+
+        if (ok)
         {
-            mensaje = $"❌ Error al conectar con el servidor: {ex.Message}";
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+        else
+        {
+            errorMessage = error ?? "Usuario o contraseña incorrectos";
         }
     }
 
-    public class Usuario
+    public class LoginModel
     {
-        public string NombreUsuario { get; set; } = string.Empty;
-        public string Contrasena { get; set; } = string.Empty;
+        [Required(ErrorMessage = "El usuario es requerido")]
+        [MinLength(3, ErrorMessage = "Mínimo 3 caracteres")]
+        public string Username { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "La contraseña es requerida")]
+        [MinLength(6, ErrorMessage = "Mínimo 6 caracteres")]
+        public string Password { get; set; } = string.Empty;
     }
 }

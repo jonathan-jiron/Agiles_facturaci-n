@@ -1,64 +1,172 @@
-using Microsoft.EntityFrameworkCore;
 using Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Data
 {
     public class ApplicationDbContext : DbContext
     {
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+            : base(options)
         {
-            modelBuilder.Entity<Producto>()
-                .Property(p => p.Precio)
-                .HasPrecision(18, 4); // Puedes ajustar los n鷐eros seg鷑 lo que necesites
-            modelBuilder.Entity<Lote>()
-                .Property(l => l.Precio)
-                .HasPrecision(18, 4);
-
-            modelBuilder.Entity<Cliente>().HasData(
-            new Cliente { Id = 1, CedulaRuc = "0101010101", Nombre = "Juan Perez", Telefono = "0991112233", Direccion = "Quito Centro", Correo = "juanp@example.com" },
-            new Cliente { Id = 2, CedulaRuc = "0202020202", Nombre = "Ana Torres", Telefono = "0988899777", Direccion = "Guayaquil Norte", Correo = "ana.torres@example.com" },
-            new Cliente { Id = 3, CedulaRuc = "1718192021", Nombre = "Mario Mena", Telefono = "0995556666", Direccion = "Cuenca", Correo = "mena.mario@example.com" },
-            new Cliente { Id = 4, CedulaRuc = "2122232425", Nombre = "Luisa Vera", Telefono = "0975532332", Direccion = "Ambato", Correo = "luisa.vera@example.com" },
-            new Cliente { Id = 5, CedulaRuc = "3031323334", Nombre = "Pedro Ru韟", Telefono = "0993459821", Direccion = "Manta", Correo = "pedro.ruiz@example.com" }
-    );
-            modelBuilder.Entity<Producto>().HasData(
-                new Producto { Id = 1, Nombre = "Laptop Dell XPS", Precio = 1200.00m, Stock = 20 },
-                new Producto { Id = 2, Nombre = "Mouse Logitech", Precio = 35.50m, Stock = 150 },
-                new Producto { Id = 3, Nombre = "Monitor Samsung", Precio = 300.00m, Stock = 40 },
-                new Producto { Id = 4, Nombre = "Teclado Mec醤ico", Precio = 80.00m, Stock = 60 },
-                new Producto { Id = 5, Nombre = "Impresora HP", Precio = 220.75m, Stock = 25 },
-                new Producto { Id = 6, Nombre = "Tablet Lenovo", Precio = 400.30m, Stock = 55 },
-                new Producto { Id = 7, Nombre = "Disco SSD 1TB", Precio = 100.99m, Stock = 75 },
-                new Producto { Id = 8, Nombre = "C醡ara Web", Precio = 60.00m, Stock = 95 },
-                new Producto { Id = 9, Nombre = "Auriculares", Precio = 45.00m, Stock = 120 },
-                new Producto { Id = 10, Nombre = "Speakers Bluetooth", Precio = 70.00m, Stock = 35 }
-            );
-            modelBuilder.Entity<Lote>().HasData(
-                // Laptop Dell XPS (ProductoId = 1): 2 lotes distintos con diferentes precios
-                new Lote { Id = 1, CodigoLote = "LAP202511A", Cantidad = 10, FechaIngreso = new DateTime(2025, 10, 20), ProductoId = 1, Precio = 1200.00m },
-                new Lote { Id = 2, CodigoLote = "LAP202511B", Cantidad = 10, FechaIngreso = new DateTime(2025, 11, 3), ProductoId = 1, Precio = 1180.50m },
-                // Mouse Logitech (ProductoId = 2): varios lotes
-                new Lote { Id = 3, CodigoLote = "MOU202510A", Cantidad = 100, FechaIngreso = new DateTime(2025, 10, 10), ProductoId = 2, Precio = 35.50m },
-                new Lote { Id = 4, CodigoLote = "MOU202511A", Cantidad = 50, FechaIngreso = new DateTime(2025, 11, 2), ProductoId = 2, Precio = 34.75m },
-                // Monitor Samsung
-                new Lote { Id = 5, CodigoLote = "MON202509A", Cantidad = 25, FechaIngreso = new DateTime(2025, 9, 12), ProductoId = 3, Precio = 300.00m },
-                new Lote { Id = 6, CodigoLote = "MON202510B", Cantidad = 15, FechaIngreso = new DateTime(2025, 10, 25), ProductoId = 3, Precio = 295.00m },
-                // ... (agrega m醩 lotes para productos restantes, puedes variar fechas y precios)
-                new Lote { Id = 7, CodigoLote = "IMP202510A", Cantidad = 25, FechaIngreso = new DateTime(2025, 10, 12), ProductoId = 5, Precio = 220.75m },
-                new Lote { Id = 8, CodigoLote = "SSD202511A", Cantidad = 50, FechaIngreso = new DateTime(2025, 11, 1), ProductoId = 7, Precio = 102.99m }
-            // (agrega m醩 seg鷑 el stock de otros productos)
-            );
-            modelBuilder.Entity<Usuario>().HasData(
-                new Usuario { Id = 1, NombreUsuario = "admin", Contrasena = "admin123" },
-                new Usuario { Id = 2, NombreUsuario = "testuser", Contrasena = "testpass" }
-            );
         }
-
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
         public DbSet<Cliente> Clientes { get; set; }
         public DbSet<Producto> Productos { get; set; }
         public DbSet<Lote> Lotes { get; set; }
         public DbSet<Usuario> Usuarios { get; set; }
+        public DbSet<EventoActividad> EventosActividad { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            // 脥ndices
+            modelBuilder.Entity<Usuario>()
+                .HasIndex(u => u.Username)
+                .IsUnique();
+
+            modelBuilder.Entity<Cliente>()
+                .HasIndex(c => c.Identificacion)
+                .IsUnique();
+
+            // Concurrency (opcional)
+            modelBuilder.Entity<Cliente>()
+                .Property(c => c.RowVersion)
+                .IsRowVersion();
+
+            modelBuilder.Entity<Producto>()
+                .Property(p => p.RowVersion)
+                .IsRowVersion();
+
+            // Configuraci贸n Cliente (propiedades nuevas)
+            modelBuilder.Entity<Cliente>(entity =>
+            {
+                entity.HasKey(c => c.Id);
+
+                entity.Property(c => c.NombreRazonSocial)
+                      .IsRequired()
+                      .HasMaxLength(200);
+
+                entity.Property(c => c.Identificacion)
+                      .IsRequired()
+                      .HasMaxLength(20);
+
+                entity.Property(c => c.Telefono)
+                      .HasMaxLength(30);
+
+                entity.Property(c => c.Direccion)
+                      .HasMaxLength(300);
+
+                entity.Property(c => c.Correo)
+                      .HasMaxLength(150);
+            });
+
+            // Configuraci贸n Producto
+            modelBuilder.Entity<Producto>(entity =>
+            {
+                entity.HasKey(p => p.Id);
+                entity.Property(p => p.Codigo)
+                      .IsRequired()
+                      .HasMaxLength(50);
+                entity.Property(p => p.Nombre)
+                      .IsRequired()
+                      .HasMaxLength(200);
+                entity.Property(p => p.Descripcion)
+                      .HasMaxLength(500);
+
+                entity.HasMany(p => p.Lotes)
+                      .WithOne(l => l.Producto)
+                      .HasForeignKey(l => l.ProductoId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configuraci贸n Lote
+            modelBuilder.Entity<Lote>(entity =>
+            {
+                entity.HasKey(l => l.Id);
+                entity.Property(l => l.NumeroLote)
+                      .IsRequired()
+                      .HasMaxLength(100);
+                entity.HasIndex(l => l.NumeroLote).IsUnique(); // 脥ndice 煤nico
+                entity.Property(l => l.Cantidad)
+                      .IsRequired();
+                entity.Property(l => l.PrecioUnitario)
+                      .HasPrecision(18, 2)
+                      .IsRequired();
+                entity.Property(l => l.FechaIngreso)
+                      .IsRequired();
+                entity.Property(l => l.FechaVencimiento);
+
+                // Relaci贸n con Producto
+                entity.HasOne(l => l.Producto)
+                      .WithMany(p => p.Lotes)
+                      .HasForeignKey(l => l.ProductoId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Configuraci贸n Usuario
+            modelBuilder.Entity<Usuario>(entity =>
+            {
+                entity.HasKey(u => u.Id);
+                entity.Property(u => u.Username)
+                      .IsRequired()
+                      .HasMaxLength(50);
+                entity.Property(u => u.PasswordHash)
+                      .IsRequired();
+                entity.Property(u => u.Rol)
+                      .IsRequired()
+                      .HasMaxLength(20);
+            });
+
+            // Seed Data
+            SeedData(modelBuilder);
+        }
+
+        private void SeedData(ModelBuilder modelBuilder)
+        {
+            var fechaActual = new DateTime(2025, 1, 1);
+
+            // Clientes (sin TipoIdentificacion/CedulaRuc)
+            modelBuilder.Entity<Cliente>().HasData(
+                new Cliente { Id = 1, Identificacion = "1234567890",   NombreRazonSocial = "Juan P茅rez Garc铆a",                     Telefono = "0999999999", Direccion = "Av. Principal 123 y Secundaria, Quito",         Correo = "juan.perez@email.com" },
+                new Cliente { Id = 2, Identificacion = "1234567890001", NombreRazonSocial = "DISTRIBUIDORA MARTINEZ CIA. LTDA.",     Telefono = "0988888888", Direccion = "Calle Comercio 456, Edificio Blue, Guayaquil",    Correo = "ventas@distrimartinez.com" },
+                new Cliente { Id = 3, Identificacion = "USA123456",     NombreRazonSocial = "John Smith",                             Telefono = "0977777777", Direccion = "Hotel Hilton, Habitaci贸n 305, Quito",             Correo = "john.smith@email.com" },
+                new Cliente { Id = 4, Identificacion = "0987654321",    NombreRazonSocial = "Mar铆a Fernanda L贸pez Torres",            Telefono = "0966666666", Direccion = "Urbanizaci贸n Los Pinos, Mz 5 Villa 10, Cuenca",   Correo = "maria.lopez@email.com" }
+            );
+
+            // Productos
+            modelBuilder.Entity<Producto>().HasData(
+                new Producto { Id = 1, Codigo = "PROD-001", Nombre = "Laptop HP Pavilion 15", Descripcion = "Intel Core i5, 8GB RAM, 256GB SSD" },
+                new Producto { Id = 2, Codigo = "PROD-002", Nombre = "Mouse Logitech M185", Descripcion = "Inal谩mbrico, USB, Gris" },
+                new Producto { Id = 3, Codigo = "PROD-003", Nombre = "Teclado Genius KB-110", Descripcion = "USB, Negro, Espa帽ol" },
+                new Producto { Id = 4, Codigo = "PROD-004", Nombre = "Monitor Samsung 24 pulgadas", Descripcion = "Full HD, HDMI, VGA" },
+                new Producto { Id = 5, Codigo = "PROD-005", Nombre = "Impresora HP DeskJet 2775", Descripcion = "Multifunci贸n, WiFi, Color" },
+                new Producto { Id = 6, Codigo = "PROD-006", Nombre = "Disco Duro Externo 1TB", Descripcion = "USB 3.0, Port谩til, Negro" },
+                new Producto { Id = 7, Codigo = "PROD-007", Nombre = "Memoria USB 32GB Kingston", Descripcion = "USB 3.0, Alta velocidad" },
+                new Producto { Id = 8, Codigo = "PROD-008", Nombre = "Webcam Logitech C270", Descripcion = "720p, USB, Micr贸fono integrado" },
+                new Producto { Id = 9, Codigo = "PROD-009", Nombre = "Cable HDMI 2m", Descripcion = "1080p, Compatible 4K" },
+                new Producto { Id = 10, Codigo = "PROD-010", Nombre = "Hub USB 4 puertos", Descripcion = "USB 3.0, Alimentaci贸n externa" }
+            );
+
+            // Lotes
+            modelBuilder.Entity<Lote>().HasData(
+                new Lote { Id = 1,  NumeroLote = "FAC-001-001-0001234", ProductoId = 1, Cantidad = 5,  PrecioUnitario = 850.00m, FechaIngreso = fechaActual, FechaVencimiento = fechaActual.AddYears(1) },
+                new Lote { Id = 2,  NumeroLote = "FAC-001-001-0001890", ProductoId = 1, Cantidad = 3,  PrecioUnitario = 870.00m, FechaIngreso = fechaActual },
+                new Lote { Id = 3,  NumeroLote = "FAC-002-002-0002345", ProductoId = 2, Cantidad = 50, PrecioUnitario = 15.00m,  FechaIngreso = fechaActual },
+                new Lote { Id = 4,  NumeroLote = "FAC-002-002-0002890", ProductoId = 2, Cantidad = 30, PrecioUnitario = 18.00m,  FechaIngreso = fechaActual },
+                new Lote { Id = 5,  NumeroLote = "FAC-003-003-0003456", ProductoId = 3, Cantidad = 25, PrecioUnitario = 20.00m,  FechaIngreso = fechaActual },
+                new Lote { Id = 6,  NumeroLote = "FAC-004-004-0004567", ProductoId = 4, Cantidad = 10, PrecioUnitario = 180.00m, FechaIngreso = fechaActual },
+                new Lote { Id = 7,  NumeroLote = "FAC-004-004-0004890", ProductoId = 4, Cantidad = 5,  PrecioUnitario = 175.00m, FechaIngreso = fechaActual },
+                new Lote { Id = 8,  NumeroLote = "FAC-005-005-0005678", ProductoId = 5, Cantidad = 8,  PrecioUnitario = 120.00m, FechaIngreso = fechaActual },
+                new Lote { Id = 9,  NumeroLote = "FAC-006-006-0006789", ProductoId = 6, Cantidad = 20, PrecioUnitario = 55.00m,  FechaIngreso = fechaActual },
+                new Lote { Id = 10, NumeroLote = "FAC-007-007-0007890", ProductoId = 7, Cantidad = 100, PrecioUnitario = 8.00m,  FechaIngreso = fechaActual },
+                new Lote { Id = 11, NumeroLote = "FAC-007-007-0007999", ProductoId = 7, Cantidad = 50, PrecioUnitario = 7.50m,  FechaIngreso = fechaActual },
+                new Lote { Id = 12, NumeroLote = "FAC-008-008-0008901", ProductoId = 8, Cantidad = 15, PrecioUnitario = 35.00m,  FechaIngreso = fechaActual },
+                new Lote { Id = 13, NumeroLote = "FAC-009-009-0009012", ProductoId = 9, Cantidad = 60, PrecioUnitario = 5.00m,  FechaIngreso = fechaActual },
+                new Lote { Id = 14, NumeroLote = "FAC-010-010-0010123", ProductoId = 10, Cantidad = 12, PrecioUnitario = 25.00m, FechaIngreso = fechaActual }
+            );
+
+            // Seed de Usuario se hace en DbInitializer en runtime.
+        }
     }
 }
