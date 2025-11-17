@@ -38,6 +38,34 @@ namespace WebAPI.Controllers
             return Ok(data);
         }
 
+        // Nuevo: obtener un producto por id
+        [HttpGet("{id:int}")]
+        public async Task<ActionResult<ProductoDto>> GetById(int id)
+        {
+            var p = await _db.Productos
+                .AsNoTracking()
+                .Include(x => x.Lotes)
+                .Where(x => x.Id == id)
+                .Select(x => new ProductoDto
+                {
+                    Id = x.Id,
+                    Codigo = x.Codigo,
+                    Nombre = x.Nombre,
+                    Descripcion = x.Descripcion,
+                    Lotes = x.Lotes.Select(l => new LoteDto
+                    {
+                        Id = l.Id,
+                        NumeroLote = l.NumeroLote,
+                        Cantidad = l.Cantidad,
+                        PrecioUnitario = l.PrecioUnitario
+                    }).ToList()
+                })
+                .FirstOrDefaultAsync();
+
+            if (p is null) return NotFound();
+            return Ok(p);
+        }
+
         [HttpPost]
         public async Task<ActionResult> Post([FromBody] ProductoCreateDto dto)
         {
@@ -73,7 +101,8 @@ namespace WebAPI.Controllers
             });
             await _db.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(Get), new { id = entity.Id }, null);
+            // Apunta al nuevo endpoint GetById
+            return CreatedAtAction(nameof(GetById), new { id = entity.Id }, null);
         }
 
         [HttpPut("{id:int}")]

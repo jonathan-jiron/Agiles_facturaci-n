@@ -3,8 +3,8 @@
 @layout MainLayout
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
+@inject NavigationManager Nav
 @using System.ComponentModel.DataAnnotations
-@using System.Text.RegularExpressions
 @using Domain.Entities
 
 <h3 class="mb-4"><i class="fa-solid fa-users me-2"></i>Gestión de Clientes</h3>
@@ -12,199 +12,38 @@
 <div class="page-container">
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
-            <button class="btn btn-primary mb-3" @onclick="MostrarFormularioNuevo">
-                <i class="fa-solid fa-user-plus"></i> Nuevo Cliente
-            </button>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <button class="btn btn-primary mb-0" @onclick="MostrarNuevoCliente">
+                    <i class="fa-solid fa-user-plus"></i> Nuevo Cliente
+                </button>
 
-            @if (mostrarFormulario)
-            {
-                <div class="card border-primary mb-3">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">
-                            <i class="fa-solid fa-id-card me-2"></i>
-                            @(clienteActual.Id == 0 ? "Registrar Nuevo Cliente" : "Editar Cliente")
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <EditForm Model="@clienteActual" OnValidSubmit="@GuardarCliente">
-                            <DataAnnotationsValidator />
-                            
-                            <!-- Sección: Identificación -->
-                            <div class="border-bottom pb-3 mb-3">
-                                <h6 class="text-primary">
-                                    <i class="fa-solid fa-fingerprint me-2"></i>
-                                    Identificación del Cliente
-                                </h6>
-                                
-                                <div class="row">
-                                    <div class="col-md-4 mb-3">
-                                        <label class="form-label">
-                                            Tipo de Identificación <span class="text-danger">*</span>
-                                        </label>
-                                        <InputSelect @bind-Value="clienteActual.TipoIdentificacion" class="form-select">
-                                            <option value="">Seleccione...</option>
-                                            <option value="CEDULA">Cédula (10 dígitos)</option>
-                                            <option value="RUC">RUC (13 dígitos)</option>
-                                            <option value="PASAPORTE">Pasaporte</option>
-                                        </InputSelect>
-                                        <ValidationMessage For="@(() => clienteActual.TipoIdentificacion)" class="text-danger small" />
-                                    </div>
-                                    
-                                    <div class="col-md-8 mb-3">
-                                        <label class="form-label">
-                                            Número de Identificación <span class="text-danger">*</span>
-                                        </label>
-                                        <InputText @bind-Value="clienteActual.Identificacion" class="form-control" 
-                                                   placeholder="@GetPlaceholderIdentificacion()" 
-                                                   maxlength="13" />
-                                        <ValidationMessage For="@(() => clienteActual.Identificacion)" class="text-danger small" />
-                                        @if (!string.IsNullOrEmpty(mensajeValidacionCedula))
-                                        {
-                                            <small class="text-danger d-block mt-1">
-                                                <i class="fa-solid fa-exclamation-circle me-1"></i>@mensajeValidacionCedula
-                                            </small>
-                                        }
-                                        <small class="text-muted">
-                                            <i class="fa-solid fa-info-circle me-1"></i>
-                                            @GetInfoIdentificacion()
-                                        </small>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Sección: Datos Personales/Empresa -->
-                            <div class="border-bottom pb-3 mb-3">
-                                <h6 class="text-primary">
-                                    <i class="fa-solid fa-user me-2"></i>
-                                    Datos del Cliente
-                                </h6>
-                                
-                                <div class="row">
-                                    <div class="col-md-12 mb-3">
-                                        <label class="form-label">
-                                            @(clienteActual.TipoIdentificacion == "RUC" ? "Razón Social" : "Nombre Completo") 
-                                            <span class="text-danger">*</span>
-                                        </label>
-                                        <InputText @bind-Value="clienteActual.NombreRazonSocial" class="form-control" 
-                                                   placeholder="@(clienteActual.TipoIdentificacion == "RUC" ? "Ej: EMPRESA XYZ S.A." : "Ej: Juan Alberto Pérez García")" />
-                                        <ValidationMessage For="@(() => clienteActual.NombreRazonSocial)" class="text-danger small" />
-                                        <small class="text-muted">
-                                            <i class="fa-solid fa-info-circle me-1"></i>
-                                            Debe coincidir con el documento de identificación
-                                        </small>
-                                    </div>
-                                </div>
-
-                                <div class="row">
-                                    <div class="col-md-12 mb-3">
-                                        <label class="form-label">
-                                            Dirección <span class="text-danger">*</span>
-                                        </label>
-                                        <InputText @bind-Value="clienteActual.Direccion" class="form-control" 
-                                                   placeholder="Calle principal y secundaria, número, ciudad" />
-                                        <ValidationMessage For="@(() => clienteActual.Direccion)" class="text-danger small" />
-                                        <small class="text-muted">
-                                            <i class="fa-solid fa-map-marker-alt me-1"></i>
-                                            Dirección completa requerida para facturación electrónica
-                                        </small>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Sección: Contacto -->
-                            <div class="pb-3 mb-3">
-                                <h6 class="text-primary">
-                                    <i class="fa-solid fa-address-book me-2"></i>
-                                    Información de Contacto
-                                </h6>
-                                
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">
-                                            Correo Electrónico <span class="text-danger">*</span>
-                                        </label>
-                                        <div class="input-group">
-                                            <span class="input-group-text"><i class="fa-solid fa-envelope"></i></span>
-                                            <InputText @bind-Value="clienteActual.Correo" class="form-control" 
-                                                       type="email" placeholder="cliente@ejemplo.com" />
-                                        </div>
-                                        <ValidationMessage For="@(() => clienteActual.Correo)" class="text-danger small" />
-                                        <small class="text-muted">
-                                            <i class="fa-solid fa-paper-plane me-1"></i>
-                                            Se enviará la factura electrónica a este correo
-                                        </small>
-                                    </div>
-                                    
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">
-                                            Teléfono <span class="text-danger">*</span>
-                                        </label>
-                                        <div class="input-group">
-                                            <span class="input-group-text"><i class="fa-solid fa-phone"></i></span>
-                                            <InputText @bind-Value="clienteActual.Telefono" class="form-control" 
-                                                       placeholder="0999999999" maxlength="10" />
-                                        </div>
-                                        <ValidationMessage For="@(() => clienteActual.Telefono)" class="text-danger small" />
-                                        @if (!string.IsNullOrEmpty(mensajeValidacionTelefono))
-                                        {
-                                            <small class="text-danger d-block mt-1">
-                                                <i class="fa-solid fa-exclamation-circle me-1"></i>@mensajeValidacionTelefono
-                                            </small>
-                                        }
-                                        <small class="text-muted">10 dígitos (celular o convencional)</small>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Mensajes -->
-                            @if (!string.IsNullOrEmpty(mensajeError))
-                            {
-                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                    <i class="fa-solid fa-exclamation-triangle me-2"></i>
-                                    <strong>Error:</strong> @mensajeError
-                                    <button type="button" class="btn-close" @onclick="() => mensajeError = string.Empty"></button>
-                                </div>
-                            }
-
-                            @if (!string.IsNullOrEmpty(mensajeExito))
-                            {
-                                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                    <i class="fa-solid fa-check-circle me-2"></i>
-                                    <strong>Éxito:</strong> @mensajeExito
-                                    <button type="button" class="btn-close" @onclick="() => mensajeExito = string.Empty"></button>
-                                </div>
-                            }
-
-                            <!-- Botones -->
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-success btn-lg">
-                                    <i class="fa-solid fa-save me-2"></i>
-                                    Guardar Cliente
-                                </button>
-                                <button type="button" class="btn btn-secondary btn-lg" @onclick="CancelarEdicion">
-                                    <i class="fa-solid fa-times me-2"></i>
-                                    Cancelar
-                                </button>
-                            </div>
-                        </EditForm>
-                    </div>
+                <!-- Búsqueda dinámica clientes -->
+                <div class="d-flex gap-2 align-items-center">
+                    <select class="form-select form-select-sm" style="width:200px" @bind="cliSearchField">
+                        <option value="All">Buscar en: Todo</option>
+                        <option value="TipoIdentificacion">Tipo ID</option>
+                        <option value="Identificacion">Identificación</option>
+                        <option value="NombreRazonSocial">Nombre / Razón Social</option>
+                        <option value="Telefono">Teléfono</option>
+                        <option value="Correo">Correo</option>
+                        <option value="Direccion">Dirección</option>
+                    </select>
+                    <input class="form-control form-control-sm" style="width:360px" placeholder="Buscar clientes..." @bind="cliSearchTerm" @bind:event="oninput" />
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="ClearCliFilter" title="Limpiar búsqueda"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-            }
+            </div>
 
-            <!-- Tabla de Clientes -->
-            @if (clientes == null)
+            @if (filteredClientes == null)
             {
                 <div class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Cargando...</span>
-                    </div>
+                    <div class="spinner-border text-primary" role="status"></div>
                     <p class="mt-2">Cargando clientes...</p>
                 </div>
             }
-            else if (!clientes.Any())
+            else if (!filteredClientes.Any())
             {
                 <div class="alert alert-info">
-                    <i class="fa-solid fa-info-circle"></i> No hay clientes registrados. Haz clic en "Nuevo Cliente" para agregar uno.
+                    <i class="fa-solid fa-info-circle"></i> No hay clientes que coincidan con la búsqueda.
                 </div>
             }
             else
@@ -223,7 +62,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var cliente in clientes)
+                            @foreach (var cliente in filteredClientes)
                             {
                                 <tr>
                                     <td>
@@ -233,26 +72,20 @@
                                     </td>
                                     <td>@cliente.Identificacion</td>
                                     <td><strong>@cliente.NombreRazonSocial</strong></td>
-                                    <td>
-                                        <i class="fa-solid fa-phone text-muted me-1"></i>
-                                        @cliente.Telefono
-                                    </td>
-                                    <td>
-                                        <i class="fa-solid fa-envelope text-muted me-1"></i>
-                                        @cliente.Correo
-                                    </td>
+                                    <td><i class="fa-solid fa-phone text-muted me-1"></i>@cliente.Telefono</td>
+                                    <td><i class="fa-solid fa-envelope text-muted me-1"></i>@cliente.Correo</td>
                                     <td class="small">@cliente.Direccion</td>
                                     <td class="text-center">
                                         <div class="btn-group btn-group-sm flex-nowrap" role="group" aria-label="Acciones">
-                                            <button class="btn btn-warning" title="Editar" @onclick="() => EditarCliente(cliente)">
+                                            <button class="btn btn-warning" title="Editar" @onclick="() => NavegarEditarCliente(cliente.Id)">
                                                 <i class="fa-solid fa-pen-to-square"></i>
                                             </button>
-<button class="btn btn-danger" title="Eliminar" @onclick="() => SolicitarConfirmacion(
-        ObtenerMensajeEliminarCliente(cliente),
-        () => EliminarCliente(cliente.Id)
-    )">
-    <i class="fa-solid fa-trash"></i>
-</button>
+                                            <button class="btn btn-danger" title="Eliminar" @onclick="() => SolicitarConfirmacion(
+                                                    ObtenerMensajeEliminarCliente(cliente),
+                                                    () => EliminarCliente(cliente.Id)
+                                                )">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -291,77 +124,55 @@
 
 @code {
     private List<Cliente> clientes = new();
-    private Cliente clienteActual = new Cliente();
-    private bool mostrarFormulario = false;
+    private IEnumerable<Cliente> filteredClientes => GetFilteredClientes();
+    private string cliSearchTerm = "";
+    private string cliSearchField = "All";
     private string mensajeError = "";
-    private string mensajeExito = "";
-    private string mensajeValidacionCedula = "";
-    private string mensajeValidacionTelefono = "";
     private bool mostrarConfirmacion = false;
     private string mensajeConfirmacion = "";
     private Func<Task>? accionConfirmar = null;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadClientes();
-    }
-
-    private async Task LoadClientes()
-    {
         clientes = await Http.GetFromJsonAsync<List<Cliente>>("http://localhost:5240/api/clientes") ?? new List<Cliente>();
     }
 
-    private void MostrarFormularioNuevo()
+    private IEnumerable<Cliente> GetFilteredClientes()
     {
-        clienteActual = new Cliente();
-        mostrarFormulario = true;
-        mensajeError = "";
-        mensajeExito = "";
+        if (string.IsNullOrWhiteSpace(cliSearchTerm)) return clientes;
+
+        var term = cliSearchTerm.Trim().ToLowerInvariant();
+
+        return clientes.Where(c =>
+        {
+            return cliSearchField switch
+            {
+                "TipoIdentificacion" => (c.TipoIdentificacion ?? "").ToLowerInvariant().Contains(term),
+                "Identificacion" => (c.Identificacion ?? "").ToLowerInvariant().Contains(term),
+                "NombreRazonSocial" => (c.NombreRazonSocial ?? "").ToLowerInvariant().Contains(term),
+                "Telefono" => (c.Telefono ?? "").ToLowerInvariant().Contains(term),
+                "Correo" => (c.Correo ?? "").ToLowerInvariant().Contains(term),
+                "Direccion" => (c.Direccion ?? "").ToLowerInvariant().Contains(term),
+                _ => (
+                        (c.TipoIdentificacion ?? "").ToLowerInvariant().Contains(term)
+                        || (c.Identificacion ?? "").ToLowerInvariant().Contains(term)
+                        || (c.NombreRazonSocial ?? "").ToLowerInvariant().Contains(term)
+                        || (c.Telefono ?? "").ToLowerInvariant().Contains(term)
+                        || (c.Correo ?? "").ToLowerInvariant().Contains(term)
+                        || (c.Direccion ?? "").ToLowerInvariant().Contains(term)
+                    )
+            };
+        });
     }
 
-    private void CancelarEdicion()
+    private void ClearCliFilter()
     {
-        mostrarFormulario = false;
-        mensajeError = "";
-        mensajeExito = "";
+        cliSearchTerm = "";
+        cliSearchField = "All";
     }
 
-    private async Task GuardarCliente()
-    {
-        mensajeError = "";
-        mensajeExito = "";
-
-        var dto = new
-        {
-            tipoIdentificacion = clienteActual.TipoIdentificacion,
-            identificacion = clienteActual.Identificacion?.Trim(),
-            nombreRazonSocial = clienteActual.NombreRazonSocial?.Trim(),
-            telefono = clienteActual.Telefono?.Trim(),
-            direccion = clienteActual.Direccion?.Trim(),
-            correo = clienteActual.Correo?.Trim()
-        };
-
-        HttpResponseMessage response;
-        if (clienteActual.Id > 0)
-            response = await Http.PutAsJsonAsync($"http://localhost:5240/api/clientes/{clienteActual.Id}", dto);
-        else
-            response = await Http.PostAsJsonAsync("http://localhost:5240/api/clientes", dto);
-
-        if (response.IsSuccessStatusCode)
-        {
-            mensajeExito = "Cliente guardado correctamente";
-            await LoadClientes();
-            CancelarEdicion();
-        }
-        else if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
-        {
-            mensajeError = "La identificación ya está registrada. Usa un número diferente.";
-        }
-        else
-        {
-            mensajeError = "Error al guardar el cliente";
-        }
-    }
+    private void MostrarNuevoCliente() => Nav.NavigateTo("/clientes/nuevo");
+    private void NavegarEditarCliente(int id) => Nav.NavigateTo($"/clientes/editar/{id}");
 
     private void SolicitarConfirmacion(string mensaje, Func<Task> accion)
     {
@@ -388,67 +199,30 @@
         var response = await Http.DeleteAsync($"http://localhost:5240/api/clientes/{id}");
         if (response.IsSuccessStatusCode)
         {
-            await LoadClientes();
+            clientes.RemoveAll(c => c.Id == id);
             mostrarConfirmacion = false;
+        }
+        else
+        {
+            mensajeError = "Error al eliminar el cliente";
         }
     }
 
-    private string GetPlaceholderIdentificacion()
-        => clienteActual.TipoIdentificacion switch
-        {
-            "CEDULA" => "Ej: 1723456789",
-            "RUC" => "Ej: 1790012345001",
-            "PASAPORTE" => "Ej: X1234567",
-            _ => "Ingrese identificación"
-        };
-
-    private string GetInfoIdentificacion()
-        => clienteActual.TipoIdentificacion switch
-        {
-            "CEDULA" => "10 dígitos. Se validará con algoritmo del SRI",
-            "RUC" => "13 dígitos. Debe ser válido para facturación",
-            "PASAPORTE" => "Número de pasaporte",
-            _ => ""
-        };
-
-    private void EditarCliente(Cliente cliente)
+    private string GetBadgeClass(string tipo) => tipo switch
     {
-        clienteActual = new Cliente
-        {
-            Id = cliente.Id,
-            TipoIdentificacion = cliente.TipoIdentificacion,
-            Identificacion = cliente.Identificacion,
-            NombreRazonSocial = cliente.NombreRazonSocial,
-            Direccion = cliente.Direccion,
-            Telefono = cliente.Telefono,
-            Correo = cliente.Correo
-        };
-        mostrarFormulario = true;
-        mensajeError = "";
-        mensajeExito = "";
-    }
+        "CEDULA" => "bg-primary",
+        "RUC" => "bg-success",
+        "PASAPORTE" => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
 
-    private string GetBadgeClass(string tipo)
+    private string GetTipoIdLabel(string tipo) => tipo switch
     {
-        return tipo switch
-        {
-            "CEDULA" => "bg-primary",
-            "RUC" => "bg-success",
-            "PASAPORTE" => "bg-warning text-dark",
-            _ => "bg-secondary"
-        };
-    }
-
-    private string GetTipoIdLabel(string tipo)
-    {
-        return tipo switch
-        {
-            "CEDULA" => "Cédula",
-            "RUC" => "RUC",
-            "PASAPORTE" => "Pasaporte",
-            _ => tipo
-        };
-    }
+        "CEDULA" => "Cédula",
+        "RUC" => "RUC",
+        "PASAPORTE" => "Pasaporte",
+        _ => tipo
+    };
 
     private string ObtenerMensajeEliminarCliente(Cliente cliente)
         => $"¿Desea eliminar permanentemente el cliente '{cliente.NombreRazonSocial}'?";
