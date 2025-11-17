@@ -25,6 +25,8 @@ namespace WebAPI.Controllers
                     Codigo = p.Codigo,
                     Nombre = p.Nombre,
                     Descripcion = p.Descripcion,
+                    PrecioVenta = p.PrecioVenta,
+                    AplicaIva = p.AplicaIva,
                     Lotes = p.Lotes.Select(l => new LoteDto
                     {
                         Id = l.Id,
@@ -52,6 +54,8 @@ namespace WebAPI.Controllers
                     Codigo = x.Codigo,
                     Nombre = x.Nombre,
                     Descripcion = x.Descripcion,
+                    PrecioVenta = x.PrecioVenta,
+                    AplicaIva = x.AplicaIva,
                     Lotes = x.Lotes.Select(l => new LoteDto
                     {
                         Id = l.Id,
@@ -79,6 +83,9 @@ namespace WebAPI.Controllers
                 Codigo = dto.Codigo,
                 Nombre = dto.Nombre,
                 Descripcion = dto.Descripcion,
+                PrecioVenta = dto.PrecioVenta,
+                AplicaIva = dto.AplicaIva,
+                IsDeleted = false,
                 Lotes = dto.Lotes?.Select(l => new Lote
                 {
                     NumeroLote = l.NumeroLote,
@@ -114,6 +121,8 @@ namespace WebAPI.Controllers
             prod.Codigo = dto.Codigo;
             prod.Nombre = dto.Nombre;
             prod.Descripcion = dto.Descripcion;
+            prod.PrecioVenta = dto.PrecioVenta;
+            prod.AplicaIva = dto.AplicaIva;
 
             // Reemplazar lotes (simple y seguro)
             _db.Lotes.RemoveRange(prod.Lotes);
@@ -146,15 +155,15 @@ namespace WebAPI.Controllers
             var prod = await _db.Productos.Include(p => p.Lotes).FirstOrDefaultAsync(p => p.Id == id);
             if (prod is null) return NotFound();
 
-            _db.Lotes.RemoveRange(prod.Lotes);
-            _db.Productos.Remove(prod);
+            // Soft delete
+            prod.IsDeleted = true;
             await _db.SaveChangesAsync();
 
             // Registrar evento
             _db.EventosActividad.Add(new EventoActividad
             {
                 Titulo = "Producto eliminado",
-                Descripcion = $"Producto: {prod.Nombre} eliminado.",
+                Descripcion = $"Producto: {prod.Nombre} eliminado (soft).",
                 Icono = "fa-solid fa-box",
                 Color = "#dc3545",
                 Fecha = DateTime.Now
@@ -162,6 +171,68 @@ namespace WebAPI.Controllers
             await _db.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        // Nuevo endpoint: agregar lotes a un producto existente (importación automática)
+        [HttpPost("{id:int}/lotes")]
+        public async Task<ActionResult> AddLotes(int id, [FromBody] List<LoteCreateDto> lotes)
+        {
+            if (lotes == null || !lotes.Any())
+                return BadRequest("No se proporcionaron lotes.");
+
+            var prod = await _db.Productos.Include(p => p.Lotes).FirstOrDefaultAsync(p => p.Id == id);
+            if (prod is null) return NotFound(new { message = "Producto no encontrado" });
+
+            var added = new List<string>();
+            var skipped = new List<string>();
+
+            foreach (var l in lotes)
+            {
+                if (string.IsNullOrWhiteSpace(l.NumeroLote))
+                {
+                    skipped.Add("(sin número)");
+                    continue;
+                }
+
+                // Evitar crear lote con mismo número (índice único global)
+                var exists = await _db.Lotes.AnyAsync(x => x.NumeroLote == l.NumeroLote);
+                if (exists)
+                {
+                    skipped.Add(l.NumeroLote);
+                    continue;
+                }
+
+                var entity = new Lote
+                {
+                    NumeroLote = l.NumeroLote,
+                    Cantidad = l.Cantidad,
+                    PrecioUnitario = l.PrecioUnitario,
+                    FechaIngreso = l.FechaIngreso ?? DateTime.Now,
+                    FechaVencimiento = l.FechaVencimiento,
+                    ProductoId = prod.Id
+                };
+
+                _db.Lotes.Add(entity);
+                added.Add(l.NumeroLote);
+            }
+
+            await _db.SaveChangesAsync();
+
+            // Registrar evento de importación si se añadió al menos uno
+            if (added.Any())
+            {
+                _db.EventosActividad.Add(new EventoActividad
+                {
+                    Titulo = "Lotes importados",
+                    Descripcion = $"Se importaron {added.Count} lote(s) al producto '{prod.Nombre}'.",
+                    Icono = "fa-solid fa-boxes-stacked",
+                    Color = "#ffc107",
+                    Fecha = DateTime.Now
+                });
+                await _db.SaveChangesAsync();
+            }
+
+            return Ok(new { added, skipped });
         }
     }
 
@@ -171,6 +242,8 @@ namespace WebAPI.Controllers
         public string Codigo { get; set; } = "";
         public string Nombre { get; set; } = "";
         public string? Descripcion { get; set; }
+        public decimal PrecioVenta { get; set; }
+        public bool AplicaIva { get; set; }
         public List<LoteDto> Lotes { get; set; } = new();
     }
     public class LoteDto
@@ -185,6 +258,8 @@ namespace WebAPI.Controllers
         public string Codigo { get; set; } = "";
         public string Nombre { get; set; } = "";
         public string? Descripcion { get; set; }
+        public decimal PrecioVenta { get; set; }
+        public bool AplicaIva { get; set; }
         public List<LoteCreateDto> Lotes { get; set; } = new();
     }
     public class LoteCreateDto
@@ -192,6 +267,9 @@ namespace WebAPI.Controllers
         public string NumeroLote { get; set; } = "";
         public int Cantidad { get; set; }
         public decimal PrecioUnitario { get; set; }
+        // Aceptamos fechas opcionales desde el cliente
+        public DateTime? FechaIngreso { get; set; }
+        public DateTime? FechaVencimiento { get; set; }
     }
 }
 

@@ -52,14 +52,46 @@
     </div>
 }
 
+@* Modal de confirmación cuando el costo del lote >= precio de venta *@
+@if (showConfirmModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title"><i class="fa-solid fa-triangle-exclamation me-2"></i>Confirmar costo alto</h5>
+                    <button type="button" class="btn-close" @onclick="CancelConfirm"></button>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        El precio de costo del lote <strong>@($"${pendingModel?.PrecioUnitario:N2}")</strong>
+                        es mayor o igual que el precio de venta del producto <strong>@($"${ProductPrecioVenta:N2}")</strong>.
+                    </p>
+                    <p>¿Deseas continuar y guardar este lote con costo mayor o volver para modificarlo?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CancelConfirm">Cancelar</button>
+                    <button class="btn btn-danger" @onclick="ConfirmSave">Aceptar y guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private LoteModel model = new();
     private bool Visible;
     private bool IsEdit;
     private int? editingIndex;
 
+    private bool showConfirmModal = false;
+    private LoteModel? pendingModel;
+
     [Parameter] public EventCallback<(Lote lote, int? index)> OnSave { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
+
+    // Precio de venta del producto para comparar
+    [Parameter] public decimal ProductPrecioVenta { get; set; } = 0m;
 
     public Task ShowNew()
     {
@@ -90,14 +122,55 @@
 
     private async Task HandleValidSubmit()
     {
+        // Mostrar confirmación si el precio unitario es mayor o igual al precio de venta
+        if (model.PrecioUnitario >= ProductPrecioVenta)
+        {
+            pendingModel = new LoteModel
+            {
+                NumeroLote = model.NumeroLote,
+                Cantidad = model.Cantidad,
+                PrecioUnitario = model.PrecioUnitario,
+                FechaIngreso = model.FechaIngreso,
+                FechaVencimiento = model.FechaVencimiento
+            };
+            showConfirmModal = true;
+            StateHasChanged();
+            return;
+        }
+
+        await DoSave(model);
+    }
+
+    // Confirmación: aceptar guardar lote con costo alto
+    private async Task ConfirmSave()
+    {
+        if (pendingModel is not null)
+        {
+            showConfirmModal = false;
+            await DoSave(pendingModel);
+            pendingModel = null;
+        }
+    }
+
+    private Task CancelConfirm()
+    {
+        showConfirmModal = false;
+        pendingModel = null;
+        // permanecer en editor para que el usuario modifique el precio
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task DoSave(LoteModel m)
+    {
         var result = new Lote
         {
             Id = 0,
-            NumeroLote = model.NumeroLote,
-            Cantidad = model.Cantidad,
-            PrecioUnitario = model.PrecioUnitario,
-            FechaIngreso = model.FechaIngreso,
-            FechaVencimiento = model.FechaVencimiento
+            NumeroLote = m.NumeroLote,
+            Cantidad = m.Cantidad,
+            PrecioUnitario = m.PrecioUnitario,
+            FechaIngreso = m.FechaIngreso,
+            FechaVencimiento = m.FechaVencimiento
         };
 
         Visible = false;

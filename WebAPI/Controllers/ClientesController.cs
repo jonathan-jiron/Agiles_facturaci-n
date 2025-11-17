@@ -11,15 +11,13 @@ public class ClientesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
 
-    public ClientesController(ApplicationDbContext context)
-    {
-        _context = context;
-    }
+    public ClientesController(ApplicationDbContext context) => _context = context;
 
     // GET: api/clientes
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Cliente>>> GetClientes()
     {
+        // El filtro global en ApplicationDbContext excluye IsDeleted=true
         var clientes = await _context.Clientes.AsNoTracking().ToListAsync();
         return Ok(clientes);
     }
@@ -28,9 +26,10 @@ public class ClientesController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Cliente>> GetCliente(int id)
     {
-        var cliente = await _context.Clientes.FindAsync(id);
+        // Usar query que respete filtro global
+        var cliente = await _context.Clientes.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id);
         if (cliente == null) return NotFound(new { message = "Cliente no encontrado" });
-        return cliente;
+        return Ok(cliente);
     }
 
     // GET: api/clientes/search?search=texto
@@ -62,6 +61,7 @@ public class ClientesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> PostCliente(Cliente cliente)
     {
+        cliente.IsDeleted = false;
         _context.Clientes.Add(cliente);
         await _context.SaveChangesAsync();
 
@@ -76,19 +76,15 @@ public class ClientesController : ControllerBase
         });
         await _context.SaveChangesAsync();
 
-        return CreatedAtAction("GetCliente", new { id = cliente.Id }, cliente);
+        return CreatedAtAction(nameof(GetCliente), new { id = cliente.Id }, cliente);
     }
 
     // PUT: api/clientes/5
     [HttpPut("{id}")]
     public async Task<IActionResult> Put(int id, [FromBody] Cliente cliente)
     {
-        if (!ValidarIdentificacion(cliente.TipoIdentificacion, cliente.Identificacion))
-            return BadRequest("La identificación no tiene la longitud correcta para el tipo seleccionado.");
-
         var clienteExistente = await _context.Clientes.FindAsync(id);
-        if (clienteExistente == null)
-            return NotFound();
+        if (clienteExistente == null) return NotFound();
 
         clienteExistente.TipoIdentificacion = cliente.TipoIdentificacion;
         clienteExistente.Identificacion = cliente.Identificacion;
@@ -120,14 +116,15 @@ public class ClientesController : ControllerBase
         var cliente = await _context.Clientes.FindAsync(id);
         if (cliente == null) return NotFound(new { message = "Cliente no encontrado" });
 
-        _context.Clientes.Remove(cliente);
+        // Soft delete
+        cliente.IsDeleted = true;
         await _context.SaveChangesAsync();
 
         // Registrar evento
         _context.EventosActividad.Add(new EventoActividad
         {
             Titulo = "Cliente eliminado",
-            Descripcion = $"Cliente: {cliente.NombreRazonSocial} eliminado.",
+            Descripcion = $"Cliente: {cliente.NombreRazonSocial} eliminado (soft).",
             Icono = "fa-solid fa-user-minus",
             Color = "#dc3545",
             Fecha = DateTime.Now

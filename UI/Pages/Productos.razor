@@ -2,7 +2,6 @@
 @attribute [Authorize]
 @layout MainLayout
 @inject HttpClient Http
-@inject IJSRuntime JSRuntime
 @inject NavigationManager Nav
 @using System.ComponentModel.DataAnnotations
 @using Domain.Entities
@@ -61,6 +60,8 @@
                             <th>Código</th>
                             <th>Nombre</th>
                             <th>Descripción</th>
+                            <th class="text-end">Precio Venta</th>
+                            <th class="text-center">IVA</th>
                             <th class="text-center">Lotes</th>
                             <th class="text-center">Stock Total</th>
                             <th class="text-end">Valor Inventario</th>
@@ -76,6 +77,17 @@
                                 <td><span class="badge bg-dark">@p.Codigo</span></td>
                                 <td><strong>@p.Nombre</strong></td>
                                 <td>@p.Descripcion</td>
+                                <td class="text-end">@($"${p.PrecioVenta:N2}")</td>
+                                <td class="text-center">
+                                    @if (p.AplicaIva)
+                                    {
+                                        <span class="badge bg-success">SI</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">NO</span>
+                                    }
+                                </td>
                                 <td class="text-center">
                                     <button class="btn btn-sm btn-outline-info" @onclick="() => MostrarLotes(p)">
                                         <i class="fa-solid fa-eye"></i> @(p.Lotes?.Count ?? 0)
@@ -86,7 +98,7 @@
                                         @stockTotal
                                     </span>
                                 </td>
-                                <td class="text-end"><strong class="text-success">$@valorTotal.ToString("N2")</strong></td>
+                                <td class="text-end"><strong class="text-success">@($"${valorTotal:N2}")</strong></td>
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm flex-nowrap" role="group" aria-label="Acciones">
                                         <button class="btn btn-warning" title="Editar" @onclick="() => EditarProducto(p)">
@@ -105,9 +117,9 @@
                     </tbody>
                     <tfoot class="table-primary">
                         <tr class="fw-bold">
-                            <td colspan="4" class="text-end">TOTALES:</td>
+                            <td colspan="6" class="text-end">TOTALES:</td>
                             <td class="text-center">@GetFilteredProductos().Sum(p => p.Lotes?.Sum(l => l.Cantidad) ?? 0)</td>
-                            <td class="text-end text-success">$@GetFilteredProductos().Sum(p => p.Lotes?.Sum(l => l.Cantidad * l.PrecioUnitario) ?? 0).ToString("N2")</td>
+                            <td class="text-end text-success">@($"${GetFilteredProductos().Sum(p => p.Lotes?.Sum(l => l.Cantidad * l.PrecioUnitario) ?? 0):N2}")</td>
                             <td></td>
                         </tr>
                     </tfoot>
@@ -216,7 +228,7 @@
 
     private async Task LoadProductos()
     {
-        productos = await Http.GetFromJsonAsync<List<Producto>>("http://localhost:5240/api/productos");
+        productos = await Http.GetFromJsonAsync<List<Producto>>("http://localhost:5240/api/productos") ?? new List<Producto>();
     }
 
     private IEnumerable<Producto> GetFilteredProductos()
