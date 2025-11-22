@@ -15,6 +15,8 @@ namespace Infrastructure.Data
         public DbSet<Lote> Lotes { get; set; }
         public DbSet<Usuario> Usuarios { get; set; }
         public DbSet<EventoActividad> EventosActividad { get; set; }
+      public DbSet<Factura> Facturas { get; set; }
+      public DbSet<DetalleFactura> DetallesFactura { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -133,6 +135,29 @@ namespace Infrastructure.Data
 
             // Seed Data (incluye shadow properties PrecioVenta, AplicaIva e IsDeleted)
             SeedData(modelBuilder);
+
+                  // Configuración básica para Factura y DetalleFactura
+                  modelBuilder.Entity<Factura>(entity =>
+                  {
+                        entity.HasKey(f => f.Id);
+                        entity.Property(f => f.Numero).IsRequired().HasMaxLength(50);
+                        entity.Property(f => f.Subtotal).HasPrecision(18, 2);
+                        entity.Property(f => f.Iva).HasPrecision(18, 2);
+                        entity.Property(f => f.Total).HasPrecision(18, 2);
+                        entity.HasMany(f => f.Detalles)
+                                .WithOne(d => d.Factura)
+                                .HasForeignKey(d => d.FacturaId)
+                                .OnDelete(DeleteBehavior.Cascade);
+                  });
+
+                  modelBuilder.Entity<DetalleFactura>(entity =>
+                  {
+                        entity.HasKey(d => d.Id);
+                        entity.Property(d => d.Cantidad).IsRequired();
+                        entity.Property(d => d.PrecioUnitario).HasPrecision(18, 2);
+                        entity.Property(d => d.Iva).HasPrecision(18, 2);
+                        entity.Property(d => d.Total).HasPrecision(18, 2);
+                  });
         }
 
         private void SeedData(ModelBuilder modelBuilder)
