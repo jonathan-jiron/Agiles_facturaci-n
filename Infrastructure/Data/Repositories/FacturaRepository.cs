@@ -45,4 +45,15 @@ public class FacturaRepository : IFacturaRepository
             .OrderByDescending(f => f.Fecha)
             .ToListAsync();
     }
+
+    public async Task UpdateAsync(Factura factura)
+    {
+        _db.Facturas.Update(factura);
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task<Cliente?> GetClienteById(int clienteId)
+    {
+        return await _db.Clientes.FirstOrDefaultAsync(c => c.Id == clienteId);
+    }
 }

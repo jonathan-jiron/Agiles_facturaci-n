@@ -1,13 +1,17 @@
+using Application.Interfaces;
+using Application.Services;
+using DinkToPdf;
+using DinkToPdf.Contracts;
+using Domain.Interfaces;
 using Infrastructure.Data;
-using Microsoft.OpenApi.Models;
+using Infrastructure.Data.Repositories;
+using Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System.Text;
 using System.Text.Json.Serialization;
 using WebAPI.Seed;
-using Domain.Interfaces;
-using Infrastructure.Data.Repositories;
-using Application.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -85,6 +89,17 @@ builder.Services.AddScoped<IDetalleFacturaRepository, DetalleFacturaRepository>(
 builder.Services.AddScoped<FacturaService>();
 // Product lookup (obtiene precio desde la BD)
 builder.Services.AddScoped<Application.Interfaces.IProductLookup, Infrastructure.Services.ProductLookup>();
+// 🔹 2. Registro de servicios de facturación electrónica
+builder.Services.AddScoped<IClaveAccesoService, ClaveAccesoService>();
+builder.Services.AddScoped<IXmlValidator, XmlValidator>();
+builder.Services.AddScoped<IXmlSigner, XmlSigner>();
+builder.Services.AddScoped<ISriClientService, SriClientService>();
+builder.Services.AddScoped<IPdfGenerator, PdfGenerator>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IFacturacionElectronicaService, FacturacionElectronicaService>();
+
+// 🔹 3. Agregar DinkToPdf (PDF)
+builder.Services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
 
 var app = builder.Build();
 

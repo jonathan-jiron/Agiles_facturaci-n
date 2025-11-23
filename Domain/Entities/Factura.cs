@@ -25,4 +25,12 @@ public class Factura
 
     // Estado del comprobante
     public string Estado { get; set; } = "Emitida";
+
+    // --- CAMPOS PARA INTEGRACIÓN SRI ---
+    [Required, MaxLength(49)]
+    public string ClaveAcceso { get; set; } = string.Empty;
+    public string EstadoSRI { get; set; } = "PENDIENTE"; // PENDIENTE, PPR, AUT, NAT
+    public string? XmlComprobante { get; set; } // XML Autorizado final
+    public string? XmlRecepcion { get; set; } // XML Enviado a SRI (Firmado)
+    public string? MotivoRechazo { get; set; }
 }
