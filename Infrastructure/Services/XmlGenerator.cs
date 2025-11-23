@@ -76,7 +76,7 @@ public class XmlGenerator : IXmlGenerator
 
                 // --- 1. DETALLES (REQUERIDO) ---
                 new XElement(ns + "detalles",
-                    factura.DetalleFacturas.Select(d =>
+                    factura.Detalles.Select(d =>
                         new XElement(ns + "detalle",
                             new XElement(ns + "codigoPrincipal", d.Producto?.Codigo ?? "001"),
                             new XElement(ns + "descripcion", d.Producto?.Nombre ?? "Servicio"),

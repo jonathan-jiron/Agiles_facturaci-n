@@ -27,13 +27,7 @@ namespace Domain.Entities
         public string? MotivoRechazo { get; set; }
         public string? XmlComprobante { get; set; }
         public string? XmlRecepcion { get; set; }
-
-        // --- PROPIEDADES DE NAVEGACIÓN ---
-        // CRÍTICO: Esta propiedad faltaba o estaba mal nombrada.
         public Cliente Cliente { get; set; } = null!;
-        public ICollection<DetalleFactura> DetalleFacturas { get; set; } = new List<DetalleFactura>();
-
-        // --- SOFT DELETE ---
-        public bool IsDeleted { get; set; }
+        public ICollection<DetalleFactura> Detalles { get; set; } = new List<DetalleFactura>();
     }
 }

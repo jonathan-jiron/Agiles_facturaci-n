@@ -1,41 +1,69 @@
 ﻿using Application.Interfaces;
 using Microsoft.Extensions.Configuration;
-using System.Net.Http;
-using System.Text;
+using RecepcionSRI;
+using AutorizacionSRI;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace Infrastructure.Services
 {
     public class SriClientService : ISriClientService
     {
         private readonly IConfiguration _config;
-        private readonly HttpClient _httpClient;
 
         public SriClientService(IConfiguration config)
         {
             _config = config;
-            _httpClient = new HttpClient();
         }
 
-        public async Task<string> EnviarRecepcionAsync(string xmlFirmado)
+        // La interfaz espera Task<string>
+        public async Task<string> EnviarRecepcionAsync(string xmlFirmadoBase64)
         {
-            var url = _config["SRI:RecepcionUrl"];
-            var requestXml = $"<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">" +
-                $"<soap:Body>" +
-                $"<ns:validarComprobante xmlns:ns=\"http://ec.gob.sri.ws.recepcion\"><xml>{xmlFirmado}</xml>" +
-                $"</ns:validarComprobante>" +
-                $"</soap:Body>" +
-                $"</soap:Envelope>";
-            var response = await _httpClient.PostAsync(url, new StringContent(requestXml, Encoding.UTF8, "text/xml"));
-            return await response.Content.ReadAsStringAsync();
+            var endpoint = _config["SRI:RecepcionEndpoint"];
+            var client = new RecepcionComprobantesOfflineClient(RecepcionComprobantesOfflineClient.EndpointConfiguration.RecepcionComprobantesOfflinePort, endpoint);
+
+            var xmlFirmado = System.Convert.FromBase64String(xmlFirmadoBase64);
+
+            // El método retorna un objeto con la propiedad Body
+            var respuesta = await client.validarComprobanteAsync(xmlFirmado);
+
+            // Accede a la respuesta real
+            var resultado = respuesta.RespuestaRecepcionComprobante;
+            var estado = resultado.estado;
+            var motivo = resultado.comprobantes?.FirstOrDefault()?.mensajes?.FirstOrDefault()?.mensaje1;
+
+            // Devuelve un string con el estado y motivo
+            return $"Estado: {estado}, Motivo: {motivo}";
         }
 
         public async Task<string> EnviarAutorizacionAsync(string claveAcceso)
         {
-            var url = _config["SRI:AutorizacionUrl"];
-            var requestXml = $"<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><ns:autorizacionComprobante xmlns:ns=\"http://ec.gob.sri.ws.autorizacion\"><claveAccesoComprobante>{claveAcceso}</claveAccesoComprobante></ns:autorizacionComprobante></soap:Body></soap:Envelope>";
-            var response = await _httpClient.PostAsync(url, new StringContent(requestXml, Encoding.UTF8, "text/xml"));
-            return await response.Content.ReadAsStringAsync();
+            var endpoint = _config["SRI:AutorizacionEndpoint"];
+            var client = new AutorizacionComprobantesOfflineClient(AutorizacionComprobantesOfflineClient.EndpointConfiguration.AutorizacionComprobantesOfflinePort, endpoint);
+
+            var respuesta = await client.autorizacionComprobanteAsync(claveAcceso);
+
+            var resultado = respuesta.RespuestaAutorizacionComprobante;
+            var autorizacion = resultado.autorizaciones?.FirstOrDefault();
+            var estado = autorizacion?.estado;
+            var autorizacionXml = autorizacion?.comprobante;
+            var motivo = autorizacion?.mensajes?.FirstOrDefault()?.mensaje1;
+
+            return $"Estado: {estado}, AutorizacionXml: {autorizacionXml}, Motivo: {motivo}";
+        }
+
+        public void MostrarConfiguracionSRI()
+        {
+            var ambiente = _config["SRI:Ambiente"];
+            var recepcionEndpoint = _config["SRI:RecepcionEndpoint"];
+            var autorizacionEndpoint = _config["SRI:AutorizacionEndpoint"];
+            var usuario = _config["SRI:Usuario"];
+            var clave = _config["SRI:Clave"];
+
+            Console.WriteLine($"Ambiente: {ambiente}");
+            Console.WriteLine($"Recepción: {recepcionEndpoint}");
+            Console.WriteLine($"Autorización: {autorizacionEndpoint}");
+            Console.WriteLine($"Usuario: {usuario}");
         }
     }
 }

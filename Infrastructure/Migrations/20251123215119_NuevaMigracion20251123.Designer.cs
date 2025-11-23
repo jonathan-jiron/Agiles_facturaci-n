@@ -4,6 +4,7 @@ using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251123215119_NuevaMigracion20251123")]
+    partial class NuevaMigracion20251123
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -225,6 +228,9 @@ namespace Infrastructure.Migrations
 
                     b.Property<DateTime>("Fecha")
                         .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
 
                     b.Property<decimal>("Iva")
                         .HasPrecision(18, 2)
@@ -512,8 +518,7 @@ namespace Infrastructure.Migrations
                             Codigo = "PROD-004",
                             Descripcion = "Full HD, HDMI, VGA",
                             IsDeleted = false,
-                            Nombre = "Monitor Samsung 24 pulgadas",
-                            PrecioVenta = 220.00m
+                            Nombre = "Monitor Samsung 24 pulgadas"
                         },
                         new
                         {
@@ -622,7 +627,8 @@ namespace Infrastructure.Migrations
                     b.HasOne("Domain.Entities.Producto", "Producto")
                         .WithMany()
                         .HasForeignKey("ProductoId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Factura");
 
@@ -636,7 +642,8 @@ namespace Infrastructure.Migrations
                     b.HasOne("Domain.Entities.Cliente", "Cliente")
                         .WithMany()
                         .HasForeignKey("ClienteId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Cliente");
                 });
@@ -646,7 +653,8 @@ namespace Infrastructure.Migrations
                     b.HasOne("Domain.Entities.Producto", "Producto")
                         .WithMany("Lotes")
                         .HasForeignKey("ProductoId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Producto");
                 });

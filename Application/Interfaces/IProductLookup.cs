@@ -1,9 +1,9 @@
-namespace Application.Interfaces;
+using System.Threading.Tasks;
 
-public interface IProductLookup
+namespace Application.Interfaces
 {
-    /// <summary>
-    /// Obtiene el precio unitario actual del producto.
-    /// </summary>
-    Task<decimal> GetUnitPriceAsync(int productId);
+    public interface IProductLookup
+    {
+        Task<decimal> GetUnitPriceAsync(int productoId);
+    }
 }

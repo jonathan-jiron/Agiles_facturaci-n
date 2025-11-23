@@ -14,25 +14,25 @@ public class FacturaRepository : IFacturaRepository
 
     public FacturaRepository(ApplicationDbContext db) => _db = db;
 
-    // ... (Otros métodos) ...
+    // ... (Otros mï¿½todos) ...
 
     public async Task<Factura?> ObtenerFacturaParaSriAsync(int id)
     {
         // CARGA COMPLETA (EAGER LOADING) para el generador de XML:
         return await _db.Facturas
             .Include(f => f.Cliente)
-            .Include(f => f.DetalleFacturas)
+            .Include(f => f.Detalles)
                 .ThenInclude(d => d.Producto)
             .FirstOrDefaultAsync(f => f.Id == id);
     }
 
     public async Task<Factura?> ObtenerPorIdAsync(int id)
     {
-        // Retiene el método simple (sin Includes)
+        // Retiene el mï¿½todo simple (sin Includes)
         return await _db.Facturas.FirstOrDefaultAsync(f => f.Id == id);
     }
 
-    // ... (El resto de métodos como AgregarAsync, UpdateAsync, GetClienteById, etc.)
+    // ... (El resto de mï¿½todos como AgregarAsync, UpdateAsync, GetClienteById, etc.)
     public Task UpdateAsync(Factura factura)
     {
         _db.Facturas.Update(factura);

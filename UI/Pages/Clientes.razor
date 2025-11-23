@@ -1,6 +1,6 @@
 @page "/clientes"
 @attribute [Authorize]
-@layout MainLayout
+@layout Shared.MainLayout
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Nav
@@ -119,6 +119,13 @@
                 </div>
             </div>
         </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(mensajeError))
+{
+    <div class="alert alert-danger mt-3">
+        @mensajeError
     </div>
 }
 

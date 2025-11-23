@@ -87,18 +87,15 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IFacturaRepository, FacturaRepository>();
 builder.Services.AddScoped<IDetalleFacturaRepository, DetalleFacturaRepository>();
 builder.Services.AddScoped<FacturaService>();
-// Product lookup (obtiene precio desde la BD)
-builder.Services.AddScoped<Application.Interfaces.IProductLookup, Infrastructure.Services.ProductLookup>();
-// 🔹 2. Registro de servicios de facturación electrónica
 builder.Services.AddScoped<IClaveAccesoService, ClaveAccesoService>();
 builder.Services.AddScoped<IXmlValidator, XmlValidator>();
 builder.Services.AddScoped<IXmlSigner, XmlSigner>();
 builder.Services.AddScoped<ISriClientService, SriClientService>();
 builder.Services.AddScoped<IPdfGenerator, PdfGenerator>();
 builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<IFacturacionElectronicaService, FacturacionElectronicaService>();
+builder.Services.AddScoped<IProductLookup, DummyProductLookup>();
 
-// 🔹 3. Agregar DinkToPdf (PDF)
+// PDF
 builder.Services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
 
 var app = builder.Build();

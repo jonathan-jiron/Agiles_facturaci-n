@@ -22,5 +22,6 @@ public class DetalleFactura
     public decimal PrecioUnitario { get; set; }
     public decimal Iva { get; set; }
     public decimal Total { get; set; }
+    public decimal PrecioTotal { get; set; }
 }
 
