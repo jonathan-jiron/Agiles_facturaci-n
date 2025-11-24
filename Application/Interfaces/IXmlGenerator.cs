@@ -14,9 +14,6 @@ namespace Application.Interfaces
         /// </summary>
         string GenerarFacturaXml(Factura factura, Cliente cliente);
 
-        /// <summary>
-        /// Genera la Representación Impresa del Documento Electrónico (RIDE) en formato PDF.
-        /// </summary>
-        byte[] GenerarRidePdf(Factura factura, Cliente cliente);
+
     }
 }

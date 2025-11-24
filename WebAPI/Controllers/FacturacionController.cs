@@ -81,23 +81,39 @@ public class FacturacionController : ControllerBase
         await _context.SaveChangesAsync();
 
         // Enviar al SRI
+        // Enviar al SRI
         try
         {
+            Console.WriteLine("[DEBUG] Iniciando ProcesarFacturaAsync...");
             var result = await _facturaService.ProcesarFacturaAsync(xml, factura.Cliente.Correo);
+            Console.WriteLine($"[DEBUG] ProcesarFacturaAsync completado. Resultado: {result}");
             
             // Actualizar estado (ProcesarFacturaAsync podría no actualizar la entidad Factura directamente si no tiene acceso)
             // Asumimos que si no lanza excepción, fue procesado (o el string result tiene info).
             factura.EstadoSRI = "ENVIADO"; // O parsear result
+            Console.WriteLine("[DEBUG] Actualizando estado a ENVIADO...");
+            
             await _context.SaveChangesAsync();
+            Console.WriteLine("[DEBUG] SaveChangesAsync completado.");
 
             return Ok(result);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[ERROR SRI] {ex.ToString()}"); // Log completo a consola
-            factura.EstadoSRI = "ERROR";
-            factura.MotivoRechazo = ex.Message;
-            await _context.SaveChangesAsync();
+            Console.WriteLine($"[ERROR SRI] StackTrace: {ex.StackTrace}");
+            
+            try 
+            {
+                factura.EstadoSRI = "ERROR";
+                factura.MotivoRechazo = ex.Message;
+                await _context.SaveChangesAsync();
+            }
+            catch(Exception dbEx)
+            {
+                Console.WriteLine($"[ERROR DB] Al guardar error: {dbEx.Message}");
+            }
+
             return StatusCode(500, $"Error SRI: {ex.Message}");
         }
     }

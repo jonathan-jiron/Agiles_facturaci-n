@@ -91,9 +91,6 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IProductLookup, ProductLookup>();
 builder.Services.AddScoped<IFacturacionElectronicaService, FacturacionElectronicaService>();
 
-// PDF generator
-builder.Services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

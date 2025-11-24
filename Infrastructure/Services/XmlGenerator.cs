@@ -3,8 +3,6 @@ using Domain.Entities;
 using Microsoft.Extensions.Configuration;
 using System.Text;
 using System.Xml.Linq;
-using DinkToPdf;
-using DinkToPdf.Contracts;
 using System.Globalization;
 
 namespace Infrastructure.Services;
@@ -12,14 +10,12 @@ namespace Infrastructure.Services;
 public class XmlGenerator : IXmlGenerator
 {
     private readonly IConfiguration _config;
-    private readonly IConverter _pdfConverter;
     private const string RucConsumidorFinal = "9999999999999";
     private const string NamespaceSRI = "http://www.sri.gob.ec/DTE/v1.0.0";
 
-    public XmlGenerator(IConfiguration config, IConverter pdfConverter)
+    public XmlGenerator(IConfiguration config)
     {
         _config = config;
-        _pdfConverter = pdfConverter;
     }
 
     public string GenerarFacturaXml(Factura factura, Cliente cliente)
@@ -108,20 +104,5 @@ public class XmlGenerator : IXmlGenerator
         );
 
         return xml.ToString();
-    }
-
-    public byte[] GenerarRidePdf(Factura factura, Cliente cliente)
-    {
-        string htmlContent = $"<html><body><h1>RIDE: Factura {factura.Numero}</h1>" +
-                             $"<p>Clave Acceso: <b>{factura.ClaveAcceso}</b></p>" +
-                             $"<p>Estado SRI: {factura.EstadoSRI}</p></body></html>";
-
-        var doc = new HtmlToPdfDocument()
-        {
-            GlobalSettings = { PaperSize = PaperKind.A4, Orientation = Orientation.Portrait },
-            Objects = { new ObjectSettings() { HtmlContent = htmlContent } }
-        };
-
-        return _pdfConverter.Convert(doc);
     }
 }

@@ -74,15 +74,9 @@
                                 }
                             </td>
                             <td>
-                                <button class="btn btn-sm btn-outline-primary" @onclick="() => VerDetalle(factura.Id)" title="Ver detalle">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                                @if (factura.EstadoSRI == "AUTORIZADO")
-                                {
-                                    <button class="btn btn-sm btn-outline-success" @onclick="() => DescargarPdf(factura.Id)" title="Descargar PDF">
-                                        <i class="bi bi-file-pdf"></i>
-                                    </button>
-                                }
+                                <a href="@($"http://localhost:5240/api/pdf/factura/{factura.Id}")" target="_blank" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-download"></i> Descargar
+                                </a>
                             </td>
                         </tr>
                     }
