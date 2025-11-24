@@ -4,6 +4,7 @@ using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251117060548_AddSoftDeleteAndProductPrice")]
+    partial class AddSoftDeleteAndProductPrice
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -121,52 +124,6 @@ namespace Infrastructure.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Domain.Entities.DetalleFactura", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("Cantidad")
-                        .HasColumnType("int");
-
-                    b.Property<int>("FacturaId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Iva")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int?>("LoteId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("PrecioTotal")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("PrecioUnitario")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("ProductoId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Total")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FacturaId");
-
-                    b.HasIndex("LoteId");
-
-                    b.HasIndex("ProductoId");
-
-                    b.ToTable("DetallesFactura");
-                });
-
             modelBuilder.Entity("Domain.Entities.EventoActividad", b =>
                 {
                     b.Property<int>("Id")
@@ -197,66 +154,6 @@ namespace Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("EventosActividad");
-                });
-
-            modelBuilder.Entity("Domain.Entities.Factura", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ClaveAcceso")
-                        .IsRequired()
-                        .HasMaxLength(49)
-                        .HasColumnType("nvarchar(49)");
-
-                    b.Property<int>("ClienteId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Estado")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("EstadoSRI")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("Fecha")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("Iva")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("MotivoRechazo")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Numero")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<decimal>("Subtotal")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("Total")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("XmlComprobante")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("XmlRecepcion")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClienteId");
-
-                    b.ToTable("Facturas");
                 });
 
             modelBuilder.Entity("Domain.Entities.Lote", b =>
@@ -512,8 +409,7 @@ namespace Infrastructure.Migrations
                             Codigo = "PROD-004",
                             Descripcion = "Full HD, HDMI, VGA",
                             IsDeleted = false,
-                            Nombre = "Monitor Samsung 24 pulgadas",
-                            PrecioVenta = 220.00m
+                            Nombre = "Monitor Samsung 24 pulgadas"
                         },
                         new
                         {
@@ -607,53 +503,15 @@ namespace Infrastructure.Migrations
                     b.ToTable("Usuarios");
                 });
 
-            modelBuilder.Entity("Domain.Entities.DetalleFactura", b =>
-                {
-                    b.HasOne("Domain.Entities.Factura", "Factura")
-                        .WithMany("Detalles")
-                        .HasForeignKey("FacturaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Domain.Entities.Lote", "Lote")
-                        .WithMany()
-                        .HasForeignKey("LoteId");
-
-                    b.HasOne("Domain.Entities.Producto", "Producto")
-                        .WithMany()
-                        .HasForeignKey("ProductoId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.Navigation("Factura");
-
-                    b.Navigation("Lote");
-
-                    b.Navigation("Producto");
-                });
-
-            modelBuilder.Entity("Domain.Entities.Factura", b =>
-                {
-                    b.HasOne("Domain.Entities.Cliente", "Cliente")
-                        .WithMany()
-                        .HasForeignKey("ClienteId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.Navigation("Cliente");
-                });
-
             modelBuilder.Entity("Domain.Entities.Lote", b =>
                 {
                     b.HasOne("Domain.Entities.Producto", "Producto")
                         .WithMany("Lotes")
                         .HasForeignKey("ProductoId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Producto");
-                });
-
-            modelBuilder.Entity("Domain.Entities.Factura", b =>
-                {
-                    b.Navigation("Detalles");
                 });
 
             modelBuilder.Entity("Domain.Entities.Producto", b =>

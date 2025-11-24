@@ -7,7 +7,7 @@ public class Cliente
     public int Id { get; set; }
 
     [Required, MaxLength(20)]
-    public string TipoIdentificacion { get; set; } = string.Empty; // <-- AGREGA ESTA LÍNEA
+    public string TipoIdentificacion { get; set; } = string.Empty;
 
     [Required, MaxLength(200)]
     public string NombreRazonSocial { get; set; } = string.Empty;
@@ -23,6 +23,9 @@ public class Cliente
 
     [MaxLength(250)]
     public string? Direccion { get; set; }
+
+    // Soft delete
+    public bool IsDeleted { get; set; } = false;
 
     // Concurrency opcional
     public byte[]? RowVersion { get; set; }

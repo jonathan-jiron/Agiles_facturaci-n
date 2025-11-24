@@ -1,0 +1,462 @@
+@page "/productos/nuevo"
+@page "/productos/editar/{Id:int}"
+@attribute [Authorize]
+@layout MainLayout
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@using Domain.Entities
+@using System.ComponentModel.DataAnnotations
+@using System.Text.Json
+@using UI.Shared
+@using Microsoft.AspNetCore.Components.Forms
+
+<h3 class="mb-4">
+    <i class="fa-solid fa-box-open me-2"></i>
+    @(IsEdit ? "Editar Producto" : "Registrar Nuevo Producto")
+</h3>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        @* FORMULARIO DEL PRODUCTO *@
+        <EditForm Model="@productoActual" OnValidSubmit="@GuardarProducto" novalidate>
+            <DataAnnotationsValidator />
+
+            <div class="border-bottom pb-3 mb-3">
+                <h6 class="text-primary"><i class="fa-solid fa-info-circle me-2"></i>Información del Producto</h6>
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Código del Producto <span class="text-danger">*</span></label>
+                        <InputText @bind-Value="productoActual.Codigo" class="form-control" />
+                        <ValidationMessage For="@(() => productoActual.Codigo)" class="text-danger small" />
+                    </div>
+
+                    <div class="col-md-5 mb-3">
+                        <label class="form-label">Nombre del Producto <span class="text-danger">*</span></label>
+                        <InputText @bind-Value="productoActual.Nombre" class="form-control" />
+                        <ValidationMessage For="@(() => productoActual.Nombre)" class="text-danger small" />
+                    </div>
+
+                    <div class="col-md-4 mb-3 d-flex align-items-center">
+                        <div class="w-100">
+                            <label class="form-label">Precio de Venta <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <InputNumber @bind-Value="productoActual.PrecioVenta" step="0.01" class="form-control" />
+                            </div>
+                            <ValidationMessage For="@(() => productoActual.PrecioVenta)" class="text-danger small" />
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Aplicar IVA</label>
+                        <div class="form-check mt-1">
+                            <InputCheckbox @bind-Value="productoActual.AplicaIva" class="form-check-input" id="aplicaIvaCheck" />
+                            <label class="form-check-label" for="aplicaIvaCheck">Tiene IVA</label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label">Descripción</label>
+                        <InputTextArea @bind-Value="productoActual.Descripcion" class="form-control" rows="2" />
+                    </div>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(mensajeError))
+            {
+                <div class="alert alert-danger">@mensajeError</div>
+            }
+            @if (!string.IsNullOrEmpty(mensajeExito))
+            {
+                <div class="alert alert-success">@mensajeExito</div>
+            }
+
+            <div class="d-flex gap-2 mt-3">
+                <button type="submit" class="btn btn-success btn-lg" disabled="@(!productoActual.Lotes.Any())">
+                    <i class="fa-solid fa-save me-2"></i> Guardar Producto @(productoActual.Lotes.Any() ? $"({productoActual.Lotes.Sum(l => l.Cantidad)} u.)" : "")
+                </button>
+
+                <button type="button" class="btn btn-secondary btn-lg" @onclick="Cancelar">
+                    <i class="fa-solid fa-times me-2"></i> Cancelar
+                </button>
+            </div>
+        </EditForm>
+
+        @* SECCIÓN DE LOTES (fuera del EditForm) *@
+        <div class="border-top mt-4 pt-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="text-success mb-0"><i class="fa-solid fa-truck-loading me-2"></i>Lotes</h6>
+                <button type="button" class="btn btn-primary btn-sm" @onclick="MostrarNuevoLote"><i class="fa-solid fa-plus me-1"></i> Nuevo Lote</button>
+            </div>
+
+            @* Pasamos el precio de venta del producto al editor para la validación *@
+            <UI.Shared.LoteEditor @ref="loteEditor" ProductPrecioVenta="productoActual.PrecioVenta" OnSave="OnLoteSaved" OnCancel="OnLoteCancelled" />
+
+            @if (productoActual.Lotes.Any())
+            {
+                <div class="table-responsive mt-3">
+                    <table class="table table-sm table-hover table-bordered">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Nº Lote / Factura</th>
+                                <th class="text-end">Cantidad</th>
+                                <th class="text-end">Precio Costo</th>
+                                <th class="text-end">Valor Total</th>
+                                <th class="text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in productoActual.Lotes.Select((l, i) => new { L = l, Index = i }))
+                            {
+                                <tr>
+                                    <td><strong>@item.L.NumeroLote</strong></td>
+                                    <td class="text-end">@item.L.Cantidad</td>
+                                    <td class="text-end">@($"${item.L.PrecioUnitario:N2}")</td>
+                                    <td class="text-end"><strong class="text-success">@($"${(item.L.Cantidad * item.L.PrecioUnitario):N2}")</strong></td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-warning" @onclick="() => EditarLote(item.Index)"><i class="fa-solid fa-pen-to-square"></i></button>
+                                            <button type="button" class="btn btn-danger" @onclick="() => EliminarLote(item.Index)"><i class="fa-solid fa-trash"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot class="table-info">
+                            <tr class="fw-bold">
+                                <td>TOTALES</td>
+                                <td class="text-end">@productoActual.Lotes.Sum(l => l.Cantidad)</td>
+                                <td class="text-end">-</td>
+                                <td class="text-end text-success">@($"${productoActual.Lotes.Sum(l => l.Cantidad * l.PrecioUnitario):N2}")</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-warning mt-3">Aún no hay lotes registrados.</div>
+            }
+        </div>
+    </div>
+</div>
+
+@* Modal: coincidencias por nombre/descripcion *@
+@if (showDuplicateModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title"><i class="fa-solid fa-exclamation-triangle me-2"></i>Producto similar encontrado</h5>
+                    <button type="button" class="btn-close" @onclick="() => showDuplicateModal = false"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Se encontraron productos con el mismo nombre o descripción. Puedes editar uno existente para agregar los lotes o crear un producto nuevo.</p>
+
+                    <EditForm Model="@selectedExistingId">
+                        <InputRadioGroup @bind-Value="selectedExistingId">
+                            <div class="list-group mb-3">
+                                @foreach (var p in duplicateMatches)
+                                {
+                                    <label class="list-group-item d-flex justify-content-between align-items-start">
+                                        <div class="form-check d-flex align-items-start">
+                                            <InputRadio class="form-check-input me-2" Value="@(p.Id)" />
+                                        </div>
+                                        <div class="ms-2 me-auto">
+                                            <div class="fw-bold">@p.Nombre</div>
+                                            <div class="small text-muted">@p.Descripcion</div>
+                                            <div class="small">Código: @p.Codigo — Precio Venta: @($"${p.PrecioVenta:N2}") — IVA: @(p.AplicaIva ? "SI" : "NO")</div>
+                                        </div>
+                                    </label>
+                                }
+                            </div>
+                        </InputRadioGroup>
+                    </EditForm>
+
+                    <div class="alert alert-secondary">
+                        Si eliges "Editar producto existente", se importarán los lotes actuales directamente al producto seleccionado en el servidor.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="() => showDuplicateModal = false">Volver y corregir</button>
+                    <button class="btn btn-primary" @onclick="CreateNewProduct">Crear nuevo producto</button>
+                    <button class="btn btn-warning" @onclick="EditExistingProduct">Editar producto existente</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    private bool IsEdit => Id is not null && Id > 0;
+    private Producto productoActual = new Producto { Lotes = new List<Lote>() };
+    private string mensajeError = "";
+    private string mensajeExito = "";
+
+    private UI.Shared.LoteEditor? loteEditor;
+
+    // Duplicate detection
+    private bool showDuplicateModal = false;
+    private List<Producto> duplicateMatches = new();
+    private int? selectedExistingId = null;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsEdit)
+        {
+            // Siempre recargar desde la API cuando el Id cambie (edición)
+            await CargarProductoPorId();
+
+            // Si vienes con ?importedLotes=true y aún usas import via localStorage
+            var uri = new Uri(Nav.Uri);
+            var q = System.Web.HttpUtility.ParseQueryString(uri.Query);
+            if (q["importedLotes"] == "true")
+            {
+                // Sólo necesario si mantienes flujo de import por localStorage
+                await ImportLotesFromStorage();
+            }
+        }
+        else
+        {
+            // Nuevo producto: inicializar estado limpio
+            productoActual = new Producto { Lotes = new List<Lote>(), PrecioVenta = 0m, AplicaIva = false };
+        }
+    }
+
+    private void Cancelar() => Nav.NavigateTo("/productos");
+
+    private void MostrarNuevoLote() => loteEditor?.ShowNew();
+
+    private async Task EditarLote(int index)
+    {
+        var lote = productoActual.Lotes[index];
+        if (loteEditor is not null)
+            await loteEditor.Edit(lote, index);
+    }
+
+    private void EliminarLote(int index)
+    {
+        productoActual.Lotes.RemoveAt(index);
+    }
+
+    private async Task OnLoteSaved((Lote lote, int? index) payload)
+    {
+        var (lote, index) = payload;
+        if (index is null)
+        {
+            productoActual.Lotes.Add(lote);
+            mensajeExito = "Lote agregado.";
+        }
+        else
+        {
+            var i = (int)index;
+            productoActual.Lotes[i].NumeroLote = lote.NumeroLote;
+            productoActual.Lotes[i].Cantidad = lote.Cantidad;
+            productoActual.Lotes[i].PrecioUnitario = lote.PrecioUnitario;
+            productoActual.Lotes[i].FechaIngreso = lote.FechaIngreso;
+            productoActual.Lotes[i].FechaVencimiento = lote.FechaVencimiento;
+            mensajeExito = "Lote actualizado.";
+        }
+        StateHasChanged();
+        await Task.Delay(1200);
+        mensajeExito = "";
+    }
+
+    private Task OnLoteCancelled() => Task.CompletedTask;
+
+    private async Task GuardarProducto()
+    {
+        mensajeError = "";
+        mensajeExito = "";
+
+        if (productoActual.Lotes == null || productoActual.Lotes.Count == 0)
+        {
+            mensajeError = "Debes agregar al menos un lote para guardar el producto.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(productoActual.Codigo) || string.IsNullOrWhiteSpace(productoActual.Nombre))
+        {
+            mensajeError = "Código y Nombre son requeridos.";
+            return;
+        }
+
+        if (productoActual.PrecioVenta <= 0)
+        {
+            mensajeError = "El precio de venta debe ser mayor a 0.";
+            return;
+        }
+
+        // Si estamos creando (no edit), buscar coincidencias por nombre o descripción
+        if (!IsEdit)
+        {
+            var todos = await Http.GetFromJsonAsync<List<Producto>>("http://localhost:5240/api/productos") ?? new List<Producto>();
+            duplicateMatches = todos
+                .Where(p =>
+                    string.Equals(p.Nombre?.Trim(), productoActual.Nombre?.Trim(), StringComparison.OrdinalIgnoreCase)
+                    || (!string.IsNullOrWhiteSpace(productoActual.Descripcion)
+                        && string.Equals(p.Descripcion?.Trim(), productoActual.Descripcion?.Trim(), StringComparison.OrdinalIgnoreCase))
+                )
+                .ToList();
+
+            if (duplicateMatches.Any())
+            {
+                selectedExistingId = duplicateMatches.First().Id;
+                showDuplicateModal = true;
+                StateHasChanged();
+                return;
+            }
+        }
+
+        // No duplicados o usuario decide crear -> continuar guardado
+        await ContinueSaveProduct();
+    }
+
+    private async Task ContinueSaveProduct()
+    {
+        var dto = new
+        {
+            codigo = productoActual.Codigo,
+            nombre = productoActual.Nombre,
+            descripcion = productoActual.Descripcion,
+            precioVenta = productoActual.PrecioVenta,
+            aplicaIva = productoActual.AplicaIva,
+            lotes = productoActual.Lotes.Select(l => new
+            {
+                numeroLote = l.NumeroLote,
+                cantidad = l.Cantidad,
+                precioUnitario = l.PrecioUnitario,
+                fechaIngreso = l.FechaIngreso,
+                fechaVencimiento = l.FechaVencimiento
+            }).ToList()
+        };
+
+        HttpResponseMessage response;
+        if (IsEdit)
+            response = await Http.PutAsJsonAsync($"http://localhost:5240/api/productos/{Id}", dto);
+        else
+            response = await Http.PostAsJsonAsync("http://localhost:5240/api/productos", dto);
+
+        if (response.IsSuccessStatusCode)
+        {
+            Nav.NavigateTo("/productos");
+            return;
+        }
+        else if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            mensajeError = "El código de producto ya existe.";
+        }
+        else
+        {
+            mensajeError = "Error al guardar el producto";
+        }
+    }
+
+    private async Task EditExistingProduct()
+    {
+        if (selectedExistingId is null)
+        {
+            mensajeError = "Selecciona un producto existente.";
+            return;
+        }
+
+        // Guardar lotes actuales en localStorage (importación no persistente)
+        var payload = new
+        {
+            lotes = productoActual.Lotes.Select(l => new
+            {
+                numeroLote = l.NumeroLote,
+                cantidad = l.Cantidad,
+                precioUnitario = l.PrecioUnitario,
+                fechaIngreso = l.FechaIngreso,
+                fechaVencimiento = l.FechaVencimiento
+            }).ToList()
+        };
+
+        var json = JsonSerializer.Serialize(payload);
+        await JS.InvokeVoidAsync("localStorage.setItem", "importedLotes", json);
+
+        // Cerrar modal y navegar a edición — la página de edición importará los lotes desde localStorage
+        showDuplicateModal = false;
+        Nav.NavigateTo($"/productos/editar/{selectedExistingId}?importedLotes=true");
+    }
+
+    private async Task ImportLotesFromStorage()
+    {
+        try
+        {
+            var json = await JS.InvokeAsync<string>("localStorage.getItem", "importedLotes");
+            if (!string.IsNullOrWhiteSpace(json))
+            {
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("lotes", out var lotesElement) && lotesElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var le in lotesElement.EnumerateArray())
+                    {
+                        var numero = le.GetProperty("numeroLote").GetString() ?? "";
+                        var cantidad = le.GetProperty("cantidad").GetInt32();
+                        var precio = le.GetProperty("precioUnitario").GetDecimal();
+                        DateTime fechaIngreso = le.TryGetProperty("fechaIngreso", out var fi) && fi.ValueKind == JsonValueKind.String
+                            ? fi.GetDateTime()
+                            : DateTime.Now;
+                        DateTime? fechaVenc = le.TryGetProperty("fechaVencimiento", out var fv) && fv.ValueKind == JsonValueKind.String
+                            ? fv.GetDateTime()
+                            : null;
+
+                        // Evitar duplicados por número de lote
+                        if (!productoActual.Lotes.Any(l => l.NumeroLote == numero))
+                        {
+                            productoActual.Lotes.Add(new Lote
+                            {
+                                NumeroLote = numero,
+                                Cantidad = cantidad,
+                                PrecioUnitario = precio,
+                                FechaIngreso = fechaIngreso,
+                                FechaVencimiento = fechaVenc
+                            });
+                        }
+                    }
+
+                    // limpiar el storage
+                    await JS.InvokeVoidAsync("localStorage.removeItem", "importedLotes");
+                }
+            }
+        }
+        catch
+        {
+            // ignorar errores de import
+        }
+    }
+
+    private void CreateNewProduct()
+    {
+        showDuplicateModal = false;
+        _ = ContinueSaveProduct();
+    }
+
+    private async Task CargarProductoPorId()
+    {
+        var resp = await Http.GetAsync($"http://localhost:5240/api/productos/{Id}");
+        if (resp.IsSuccessStatusCode)
+        {
+            var dto = await resp.Content.ReadFromJsonAsync<Producto>();
+            if (dto is not null)
+            {
+                productoActual = dto;
+                productoActual.Lotes = productoActual.Lotes ?? new List<Lote>();
+            }
+            else
+            {
+                mensajeError = "Producto no encontrado.";
+            }
+        }
+        else
+        {
+            mensajeError = "Error al cargar el producto.";
+        }
+    }
+}

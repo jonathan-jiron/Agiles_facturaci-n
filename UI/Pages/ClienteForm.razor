@@ -1,0 +1,142 @@
+﻿@page "/clientes/nuevo"
+@page "/clientes/editar/{Id:int}"
+@attribute [Authorize]
+@layout Shared.MainLayout
+@inject HttpClient Http
+@inject NavigationManager Nav
+@using Domain.Entities
+@using System.ComponentModel.DataAnnotations
+
+<h3 class="mb-4"><i class="fa-solid fa-id-card me-2"></i>@(IsEdit ? "Editar Cliente" : "Registrar Nuevo Cliente")</h3>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <EditForm Model="@cliente" OnValidSubmit="Guardar">
+            <DataAnnotationsValidator />
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Tipo de Identificación <span class="text-danger">*</span></label>
+                    <InputSelect @bind-Value="cliente.TipoIdentificacion" class="form-select">
+                        <option value="">Seleccione...</option>
+                        <option value="CEDULA">Cédula</option>
+                        <option value="RUC">RUC</option>
+                        <option value="PASAPORTE">Pasaporte</option>
+                    </InputSelect>
+                    <ValidationMessage For="@(() => cliente.TipoIdentificacion)" class="text-danger small" />
+                </div>
+
+                <div class="col-md-8">
+                    <label class="form-label">Número de Identificación <span class="text-danger">*</span></label>
+                    <InputText @bind-Value="cliente.Identificacion" class="form-control" maxlength="13" />
+                    <ValidationMessage For="@(() => cliente.Identificacion)" class="text-danger small" />
+                </div>
+
+                <div class="col-md-12">
+                    <label class="form-label">Nombre / Razón Social <span class="text-danger">*</span></label>
+                    <InputText @bind-Value="cliente.NombreRazonSocial" class="form-control" />
+                    <ValidationMessage For="@(() => cliente.NombreRazonSocial)" class="text-danger small" />
+                </div>
+
+                <div class="col-md-12">
+                    <label class="form-label">Dirección <span class="text-danger">*</span></label>
+                    <InputText @bind-Value="cliente.Direccion" class="form-control" />
+                    <ValidationMessage For="@(() => cliente.Direccion)" class="text-danger small" />
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Teléfono <span class="text-danger">*</span></label>
+                    <InputText @bind-Value="cliente.Telefono" class="form-control" maxlength="10" />
+                    <ValidationMessage For="@(() => cliente.Telefono)" class="text-danger small" />
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Correo Electrónico <span class="text-danger">*</span></label>
+                    <InputText @bind-Value="cliente.Correo" class="form-control" type="email" />
+                    <ValidationMessage For="@(() => cliente.Correo)" class="text-danger small" />
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-success">
+                    <i class="fa-solid fa-save me-2"></i> Guardar
+                </button>
+                <button type="button" class="btn btn-secondary" @onclick="Cancelar">
+                    Cancelar
+                </button>
+            </div>
+        </EditForm>
+
+        @if (!string.IsNullOrEmpty(mensajeError))
+        {
+            <div class="alert alert-danger mt-3">
+                @mensajeError
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    private bool IsEdit => Id is not null && Id > 0;
+    private Cliente cliente = new Cliente();
+    private string mensajeError = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (IsEdit)
+        {
+            // intenta obtener por id; si el endpoint no existe en backend,
+            // cambia a cargar la lista y buscar por id.
+            var resp = await Http.GetAsync($"http://localhost:5240/api/clientes/{Id}");
+            if (resp.IsSuccessStatusCode)
+            {
+                var dto = await resp.Content.ReadFromJsonAsync<Cliente>();
+                if (dto is not null) cliente = dto;
+            }
+            else
+            {
+                // fallback: cargar lista y buscar (por si backend no tiene GET /{id})
+                var all = await Http.GetFromJsonAsync<List<Cliente>>("http://localhost:5240/api/clientes") ?? new List<Cliente>();
+                var found = all.FirstOrDefault(c => c.Id == Id);
+                if (found is not null) cliente = found;
+            }
+        }
+    }
+
+    private void Cancelar() => Nav.NavigateTo("/clientes");
+
+    private async Task Guardar()
+    {
+        mensajeError = "";
+        var dto = new
+        {
+            tipoIdentificacion = cliente.TipoIdentificacion,
+            identificacion = cliente.Identificacion?.Trim(),
+            nombreRazonSocial = cliente.NombreRazonSocial?.Trim(),
+            telefono = cliente.Telefono?.Trim(),
+            direccion = cliente.Direccion?.Trim(),
+            correo = cliente.Correo?.Trim()
+        };
+
+        HttpResponseMessage response;
+        if (IsEdit)
+            response = await Http.PutAsJsonAsync($"http://localhost:5240/api/clientes/{cliente.Id}", dto);
+        else
+            response = await Http.PostAsJsonAsync("http://localhost:5240/api/clientes", dto);
+
+        if (response.IsSuccessStatusCode)
+        {
+            Nav.NavigateTo("/clientes");
+            return;
+        }
+        else if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+        {
+            mensajeError = "La identificación ya está registrada.";
+        }
+        else
+        {
+            mensajeError = "Error al guardar el cliente";
+        }
+    }
+}

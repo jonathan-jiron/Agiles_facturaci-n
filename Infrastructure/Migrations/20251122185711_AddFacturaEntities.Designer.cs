@@ -4,6 +4,7 @@ using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251122185711_AddFacturaEntities")]
+    partial class AddFacturaEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -142,9 +145,6 @@ namespace Infrastructure.Migrations
                     b.Property<int?>("LoteId")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("PrecioTotal")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<decimal>("PrecioUnitario")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -207,19 +207,10 @@ namespace Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("ClaveAcceso")
-                        .IsRequired()
-                        .HasMaxLength(49)
-                        .HasColumnType("nvarchar(49)");
-
                     b.Property<int>("ClienteId")
                         .HasColumnType("int");
 
                     b.Property<string>("Estado")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("EstadoSRI")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -229,9 +220,6 @@ namespace Infrastructure.Migrations
                     b.Property<decimal>("Iva")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("MotivoRechazo")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Numero")
                         .IsRequired()
@@ -245,12 +233,6 @@ namespace Infrastructure.Migrations
                     b.Property<decimal>("Total")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("XmlComprobante")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("XmlRecepcion")
-                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -512,8 +494,7 @@ namespace Infrastructure.Migrations
                             Codigo = "PROD-004",
                             Descripcion = "Full HD, HDMI, VGA",
                             IsDeleted = false,
-                            Nombre = "Monitor Samsung 24 pulgadas",
-                            PrecioVenta = 220.00m
+                            Nombre = "Monitor Samsung 24 pulgadas"
                         },
                         new
                         {
@@ -622,7 +603,8 @@ namespace Infrastructure.Migrations
                     b.HasOne("Domain.Entities.Producto", "Producto")
                         .WithMany()
                         .HasForeignKey("ProductoId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Factura");
 
@@ -636,7 +618,8 @@ namespace Infrastructure.Migrations
                     b.HasOne("Domain.Entities.Cliente", "Cliente")
                         .WithMany()
                         .HasForeignKey("ClienteId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Cliente");
                 });
@@ -646,7 +629,8 @@ namespace Infrastructure.Migrations
                     b.HasOne("Domain.Entities.Producto", "Producto")
                         .WithMany("Lotes")
                         .HasForeignKey("ProductoId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Producto");
                 });

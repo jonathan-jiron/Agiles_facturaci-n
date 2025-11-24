@@ -52,6 +52,6 @@ public class AuthStateProvider : AuthenticationStateProvider
     {
         var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(anonymous)));
-        await Task.CompletedTask; // Ya está correcto, el warning es menor
+        await Task.CompletedTask;
     }
 }

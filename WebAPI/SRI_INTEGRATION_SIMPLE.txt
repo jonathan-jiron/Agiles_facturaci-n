@@ -1,0 +1,100 @@
+SRI Integration - Qué falta y qué ya está hecho (MUY SIMPLE)
+
+Objetivo:
+- Preparar el backend para que otro desarrollador pueda integrar fácilmente el envío de comprobantes al SRI (ambiente de pruebas).
+
+Resumen muy breve del flujo requerido:
+1) Crear la factura en la base de datos (ya hay endpoints para esto).
+2) Generar el XML del comprobante conforme al esquema SRI.
+3) Firmar digitalmente el XML con el certificado PFX (P12).
+4) Enviar el XML firmado al endpoint de recepción del SRI (sandbox/test).
+5) Recibir y procesar la respuesta del SRI (aceptado/rechazado) y guardar el resultado.
+
+Qué se necesita (lista corta y clara):
+- .NET SDK 8 instalado en la máquina de desarrollo.
+- SQL Server (o LocalDB) con permiso para crear la base de datos.
+- Archivo de certificado PFX (extensión .p12 o .pfx) y su contraseña para pruebas.
+- URL(s) del SRI para pruebas (recepción y autorización).
+- Credenciales o detalles que el SRI pueda requerir (si aplica).
+
+Qué ya está implementado en este repositorio (estado actual):
+- Entidades del dominio para facturación:
+  - `Domain/Entities/Factura.cs` (Factura con Totales y lista de Detalles).
+  - `Domain/Entities/DetalleFactura.cs` (líneas de la factura).
+- Repositorios EF (Infrastructure):
+  - `Infrastructure/Data/Repositories/FacturaRepository.cs`
+  - `Infrastructure/Data/Repositories/DetalleFacturaRepository.cs`
+- `Application`:
+  - DTOs para crear facturas: `Application/DTOs/FacturaDtos.cs`.
+  - Servicio mínimo `Application/Services/FacturaService.cs` que:
+    - crea la factura, calcula subtotal/iva/total (IVA 12% como ejemplo),
+    - persiste la factura y los detalles usando los repositorios.
+- `Infrastructure/Data/ApplicationDbContext.cs` tiene `DbSet` y configuración básica para `Factura` y `DetalleFactura`.
+- `WebAPI`:
+  - Endpoints mínimos en `WebAPI/Controllers/FacturasController.cs`:
+    - POST `/api/facturas` -> crear factura
+    - GET `/api/facturas` -> listar
+    - GET `/api/facturas/{id}` -> obtener
+  - `WebAPI/Program.cs` registra los repositorios y `FacturaService` en el DI.
+
+Qué NO está implementado / falta por hacer (para dejar la integración lista):
+1) Generador XML conforme al esquema SRI (XSD):
+   - Hoy existe un generador simple (placeholder) en el servicio; debe reemplazarse por uno que cumpla exactamente el XSD del SRI.
+2) Firma XML con el formato requerido por el SRI (XML Signature / enveloped signature):
+   - Se necesita usar SignedXml o librería que genere la firma conforme a la normativa del SRI.
+   - Debe aceptar la carga del certificado PFX y su contraseña (ruta o Secret Manager).
+3) Cliente SRI (HTTP):
+   - Un cliente que publique el XML firmado en el endpoint de recepción (sandbox), y capture la respuesta.
+   - Gestión de reintentos, timeouts y logging de la comunicación.
+4) Persistencia de estado de envío y respuesta:
+   - Guardar el XML original, XML firmado, respuesta del SRI y el estado final (Enviado, Autorizado, Rechazado) en la BD o en almacenamiento (archivo) para auditoría.
+5) Migraciones EF:
+   - Crear y aplicar migraciones que agreguen las tablas `Facturas` y `DetalleFactura` al esquema de la BD.
+6) Seguridad/Config:
+   - Añadir a `appsettings` (o Secret Manager) las claves:
+     - `Sri:EndpointEnviar` (URL recepción pruebas)
+     - `Sri:CertificatePath` (ruta al .pfx)
+     - `Sri:CertificatePassword` (contraseña del .pfx)
+   - Documentar cómo agregar el PFX en desarrollo (carpeta `WebAPI/certs` o variable de entorno).
+7) Tests básicos y ejemplos:
+   - Pruebas unitarias para el generador XML y la firma.
+   - Script o ejemplo de PowerShell/curl para enviar una factura real a sandbox y verificar la respuesta.
+
+Sugerencia de pasos mínimos que el integrador debe seguir para completar la integración:
+1) Obtener el PFX de pruebas del SRI (o generar certificado de pruebas si corresponde) y colocar en `WebAPI/certs/sri-test.pfx`.
+2) Añadir las configuraciones en `WebAPI/appsettings.Development.json` (o usar secrets):
+   - `Sri:EndpointEnviar` -> la URL de recepción de pruebas del SRI.
+   - `Sri:CertificatePath` -> `./certs/sri-test.pfx` (o ruta absoluta).
+   - `Sri:CertificatePassword` -> la contraseña del pfx.
+3) Implementar o completar el generador de XML para que cumpla el XSD del SRI.
+4) Implementar la firma XML (SignedXml) y probar que la firma sea válida según el SRI.
+5) Implementar el cliente HTTP que envía el XML firmado y procesa la respuesta.
+6) Guardar en la base de datos el XML, la firma y la respuesta del SRI para auditoría.
+7) Ejecutar migraciones EF y levantar la API para pruebas.
+
+Comandos útiles (PowerShell) para el desarrollador integrador:
+- Restaurar y compilar:
+  dotnet restore
+  dotnet build
+
+- Crear y aplicar migración (desde la raíz):
+  dotnet tool install --global dotnet-ef
+  dotnet ef migrations add AddFacturaEntities -p Infrastructure -s WebAPI
+  dotnet ef database update -p Infrastructure -s WebAPI
+
+- Ejecutar WebAPI:
+  cd WebAPI
+  dotnet run
+
+- Ejemplo de enviar la primera factura (PowerShell, requiere token JWT):
+  $token = "<JWT_TOKEN>"
+  Invoke-RestMethod -Uri "http://localhost:5240/api/facturas" -Method Post -Headers @{ Authorization = "Bearer $token" } -ContentType "application/json" -Body (@{ clienteId = 1; detalles = @( @{ productoId = 1; cantidad = 2 } ) } | ConvertTo-Json -Depth 5)
+
+Contacto/Notas finales (MUY IMPORTANTE):
+- Yo dejé el backend listo para crear y persistir facturas y exponer endpoints. El trabajo que queda es la integración real con SRI: XML conforme a XSD + firma XML + envío y manejo de respuestas.
+- Si quieres, puedo:
+  - A: Implementar el generador XML exacto y la firma estándar (SignedXml) ahora.
+  - B: Crear la migración EF y dejarla en el repo para que la apliques.
+  - C: Preparar una guía paso a paso más detallada para el integrador (con ejemplos de XML y tests locales).
+
+Elige A, B o C o dime si quieres los 3. Estoy listo para continuar cuando digas.

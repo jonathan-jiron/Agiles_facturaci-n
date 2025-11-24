@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251110032756_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20251123231926_ActualizaModelo20251123")]
+    partial class ActualizaModelo20251123
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -45,6 +45,11 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("NombreRazonSocial")
                         .IsRequired()
@@ -79,9 +84,10 @@ namespace Infrastructure.Migrations
                             Correo = "juan.perez@email.com",
                             Direccion = "Av. Principal 123 y Secundaria, Quito",
                             Identificacion = "1234567890",
+                            IsDeleted = false,
                             NombreRazonSocial = "Juan Pérez García",
                             Telefono = "0999999999",
-                            TipoIdentificacion = ""
+                            TipoIdentificacion = "CEDULA"
                         },
                         new
                         {
@@ -89,9 +95,10 @@ namespace Infrastructure.Migrations
                             Correo = "ventas@distrimartinez.com",
                             Direccion = "Calle Comercio 456, Edificio Blue, Guayaquil",
                             Identificacion = "1234567890001",
+                            IsDeleted = false,
                             NombreRazonSocial = "DISTRIBUIDORA MARTINEZ CIA. LTDA.",
                             Telefono = "0988888888",
-                            TipoIdentificacion = ""
+                            TipoIdentificacion = "RUC"
                         },
                         new
                         {
@@ -99,9 +106,10 @@ namespace Infrastructure.Migrations
                             Correo = "john.smith@email.com",
                             Direccion = "Hotel Hilton, Habitación 305, Quito",
                             Identificacion = "USA123456",
+                            IsDeleted = false,
                             NombreRazonSocial = "John Smith",
                             Telefono = "0977777777",
-                            TipoIdentificacion = ""
+                            TipoIdentificacion = "PASAPORTE"
                         },
                         new
                         {
@@ -109,10 +117,149 @@ namespace Infrastructure.Migrations
                             Correo = "maria.lopez@email.com",
                             Direccion = "Urbanización Los Pinos, Mz 5 Villa 10, Cuenca",
                             Identificacion = "0987654321",
+                            IsDeleted = false,
                             NombreRazonSocial = "María Fernanda López Torres",
                             Telefono = "0966666666",
-                            TipoIdentificacion = ""
+                            TipoIdentificacion = "CEDULA"
                         });
+                });
+
+            modelBuilder.Entity("Domain.Entities.DetalleFactura", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Cantidad")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FacturaId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Iva")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("LoteId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("PrecioTotal")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PrecioUnitario")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("ProductoId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Total")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FacturaId");
+
+                    b.HasIndex("LoteId");
+
+                    b.HasIndex("ProductoId");
+
+                    b.ToTable("DetallesFactura");
+                });
+
+            modelBuilder.Entity("Domain.Entities.EventoActividad", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Icono")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Titulo")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("EventosActividad");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Factura", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ClaveAcceso")
+                        .IsRequired()
+                        .HasMaxLength(49)
+                        .HasColumnType("nvarchar(49)");
+
+                    b.Property<int>("ClienteId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EstadoSRI")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("Fecha")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("Iva")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("MotivoRechazo")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Numero")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Total")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("XmlComprobante")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("XmlRecepcion")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClienteId");
+
+                    b.ToTable("Facturas");
                 });
 
             modelBuilder.Entity("Domain.Entities.Lote", b =>
@@ -291,6 +438,11 @@ namespace Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("AplicaIva")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Codigo")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -300,10 +452,21 @@ namespace Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("PrecioVenta")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m);
 
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
@@ -318,72 +481,101 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = 1,
+                            AplicaIva = true,
                             Codigo = "PROD-001",
                             Descripcion = "Intel Core i5, 8GB RAM, 256GB SSD",
-                            Nombre = "Laptop HP Pavilion 15"
+                            IsDeleted = false,
+                            Nombre = "Laptop HP Pavilion 15",
+                            PrecioVenta = 1100.00m
                         },
                         new
                         {
                             Id = 2,
+                            AplicaIva = true,
                             Codigo = "PROD-002",
                             Descripcion = "Inalámbrico, USB, Gris",
-                            Nombre = "Mouse Logitech M185"
+                            IsDeleted = false,
+                            Nombre = "Mouse Logitech M185",
+                            PrecioVenta = 25.00m
                         },
                         new
                         {
                             Id = 3,
+                            AplicaIva = true,
                             Codigo = "PROD-003",
                             Descripcion = "USB, Negro, Español",
-                            Nombre = "Teclado Genius KB-110"
+                            IsDeleted = false,
+                            Nombre = "Teclado Genius KB-110",
+                            PrecioVenta = 30.00m
                         },
                         new
                         {
                             Id = 4,
+                            AplicaIva = true,
                             Codigo = "PROD-004",
                             Descripcion = "Full HD, HDMI, VGA",
+                            IsDeleted = false,
                             Nombre = "Monitor Samsung 24 pulgadas"
                         },
                         new
                         {
                             Id = 5,
+                            AplicaIva = true,
                             Codigo = "PROD-005",
                             Descripcion = "Multifunción, WiFi, Color",
-                            Nombre = "Impresora HP DeskJet 2775"
+                            IsDeleted = false,
+                            Nombre = "Impresora HP DeskJet 2775",
+                            PrecioVenta = 140.00m
                         },
                         new
                         {
                             Id = 6,
+                            AplicaIva = true,
                             Codigo = "PROD-006",
                             Descripcion = "USB 3.0, Portátil, Negro",
-                            Nombre = "Disco Duro Externo 1TB"
+                            IsDeleted = false,
+                            Nombre = "Disco Duro Externo 1TB",
+                            PrecioVenta = 80.00m
                         },
                         new
                         {
                             Id = 7,
+                            AplicaIva = true,
                             Codigo = "PROD-007",
                             Descripcion = "USB 3.0, Alta velocidad",
-                            Nombre = "Memoria USB 32GB Kingston"
+                            IsDeleted = false,
+                            Nombre = "Memoria USB 32GB Kingston",
+                            PrecioVenta = 12.00m
                         },
                         new
                         {
                             Id = 8,
+                            AplicaIva = true,
                             Codigo = "PROD-008",
                             Descripcion = "720p, USB, Micrófono integrado",
-                            Nombre = "Webcam Logitech C270"
+                            IsDeleted = false,
+                            Nombre = "Webcam Logitech C270",
+                            PrecioVenta = 45.00m
                         },
                         new
                         {
                             Id = 9,
+                            AplicaIva = false,
                             Codigo = "PROD-009",
                             Descripcion = "1080p, Compatible 4K",
-                            Nombre = "Cable HDMI 2m"
+                            IsDeleted = false,
+                            Nombre = "Cable HDMI 2m",
+                            PrecioVenta = 10.00m
                         },
                         new
                         {
                             Id = 10,
+                            AplicaIva = false,
                             Codigo = "PROD-010",
                             Descripcion = "USB 3.0, Alimentación externa",
-                            Nombre = "Hub USB 4 puertos"
+                            IsDeleted = false,
+                            Nombre = "Hub USB 4 puertos",
+                            PrecioVenta = 28.00m
                         });
                 });
 
@@ -417,6 +609,42 @@ namespace Infrastructure.Migrations
                     b.ToTable("Usuarios");
                 });
 
+            modelBuilder.Entity("Domain.Entities.DetalleFactura", b =>
+                {
+                    b.HasOne("Domain.Entities.Factura", "Factura")
+                        .WithMany("Detalles")
+                        .HasForeignKey("FacturaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.Lote", "Lote")
+                        .WithMany()
+                        .HasForeignKey("LoteId");
+
+                    b.HasOne("Domain.Entities.Producto", "Producto")
+                        .WithMany()
+                        .HasForeignKey("ProductoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Factura");
+
+                    b.Navigation("Lote");
+
+                    b.Navigation("Producto");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Factura", b =>
+                {
+                    b.HasOne("Domain.Entities.Cliente", "Cliente")
+                        .WithMany()
+                        .HasForeignKey("ClienteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Cliente");
+                });
+
             modelBuilder.Entity("Domain.Entities.Lote", b =>
                 {
                     b.HasOne("Domain.Entities.Producto", "Producto")
@@ -426,6 +654,11 @@ namespace Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Producto");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Factura", b =>
+                {
+                    b.Navigation("Detalles");
                 });
 
             modelBuilder.Entity("Domain.Entities.Producto", b =>
