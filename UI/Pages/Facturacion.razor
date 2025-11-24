@@ -1,0 +1,358 @@
+@page "/facturacion"
+@using UI.DTOs
+@using Domain.Entities
+@using UI.Services
+@inject FacturacionService FacturacionService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<PageTitle>Facturación</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fa-solid fa-file-invoice-dollar me-2"></i>Nueva Factura</h1>
+    </div>
+
+    @if (clientes == null || productos == null)
+    {
+        <div class="alert alert-info">Cargando datos...</div>
+    }
+    else
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Datos del Cliente</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Buscar Cliente (por cédula o nombre)</label>
+                        <input type="text" class="form-control" @bind="busquedaCliente" @bind:event="oninput" 
+                               @onfocus="() => mostrarClientesSugeridos = true"
+                               placeholder="Escribe para buscar..." />
+                        
+                        @if (mostrarClientesSugeridos && clientesFiltrados.Any())
+                        {
+                            <div class="list-group position-absolute" style="z-index: 1000; max-height: 300px; overflow-y: auto; width: calc(50% - 30px);">
+                                @foreach (var c in clientesFiltrados.Take(10))
+                                {
+                                    <button type="button" class="list-group-item list-group-item-action" @onclick="() => SeleccionarCliente(c)">
+                                        <strong>@c.NombreRazonSocial</strong><br/>
+                                        <small class="text-muted">@c.Identificacion</small>
+                                    </button>
+                                }
+                            </div>
+                        }
+                        
+                        @if (clienteSeleccionado != null)
+                        {
+                            <div class="alert alert-success mt-2 d-flex justify-content-between align-items-center">
+                                <span><strong>@clienteSeleccionado.NombreRazonSocial</strong> - @clienteSeleccionado.Identificacion</span>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="LimpiarCliente">✕</button>
+                            </div>
+                        }
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end">
+                        <a href="/clientes" class="btn btn-outline-secondary"><i class="fa-solid fa-user-plus me-1"></i>Nuevo Cliente</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">Agregar Productos</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-5">
+                        <label class="form-label">Buscar Producto (por código o nombre)</label>
+                        <input type="text" class="form-control" @bind="busquedaProducto" @bind:event="oninput"
+                               @onfocus="() => mostrarProductosSugeridos = true"
+                               placeholder="Escribe para buscar..." />
+                        
+                        @if (mostrarProductosSugeridos && productosFiltrados.Any())
+                        {
+                            <div class="list-group position-absolute" style="z-index: 1000; max-height: 300px; overflow-y: auto; width: calc(41.666% - 30px);">
+                                @foreach (var p in productosFiltrados.Take(10))
+                                {
+                                    <button type="button" class="list-group-item list-group-item-action" @onclick="() => SeleccionarProducto(p)">
+                                        <strong>@p.Codigo - @p.Nombre</strong><br/>
+                                        <small class="text-muted">$@p.PrecioVenta.ToString("F2")</small>
+                                    </button>
+                                }
+                            </div>
+                        }
+                        
+                        @if (productoSeleccionado != null)
+                        {
+                            <div class="alert alert-info mt-2 d-flex justify-content-between align-items-center">
+                                <span><strong>@productoSeleccionado.Codigo</strong> - @productoSeleccionado.Nombre ($@productoSeleccionado.PrecioVenta.ToString("F2"))</span>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="LimpiarProducto">✕</button>
+                            </div>
+                        }
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Cantidad</label>
+                        <input type="number" class="form-control" @bind="cantidadSeleccionada" min="1" />
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-success w-100" @onclick="AgregarProducto" disabled="@(productoSeleccionado == null)">
+                            <i class="fa-solid fa-plus"></i> Agregar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Detalle de Factura</h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th class="text-center">Cantidad</th>
+                            <th class="text-end">P. Unitario</th>
+                            <th class="text-end">Total</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (itemsFactura.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">No hay productos agregados</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var item in itemsFactura)
+                            {
+                                <tr>
+                                    <td>@item.NombreProducto</td>
+                                    <td class="text-center">@item.Cantidad</td>
+                                    <td class="text-end">$@item.PrecioUnitario.ToString("F2")</td>
+                                    <td class="text-end">$@item.Total.ToString("F2")</td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-danger" @onclick="() => EliminarItem(item)">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" class="text-end fw-bold">Subtotal:</td>
+                            <td class="text-end">$@Subtotal.ToString("F2")</td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td colspan="3" class="text-end fw-bold">IVA (15%):</td>
+                            <td class="text-end">$@Iva.ToString("F2")</td>
+                            <td></td>
+                        </tr>
+                        <tr class="table-primary">
+                            <td colspan="3" class="text-end fw-bold fs-5">TOTAL:</td>
+                            <td class="text-end fw-bold fs-5">$@Total.ToString("F2")</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mb-5">
+            <button class="btn btn-secondary" @onclick="Cancelar">Cancelar</button>
+            <button class="btn btn-primary btn-lg" @onclick="GuardarFactura" disabled="@(!EsValida)">
+                <i class="fa-solid fa-save me-2"></i>Guardar Factura
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    private FacturaCreateDto factura = new FacturaCreateDto();
+    private List<Cliente> clientes;
+    private List<ProductoDto> productos;
+    
+    // Cliente search
+    private string busquedaCliente = "";
+    private Cliente? clienteSeleccionado;
+    private bool mostrarClientesSugeridos = false;
+    
+    // Producto search
+    private string busquedaProducto = "";
+    private ProductoDto? productoSeleccionado;
+    private bool mostrarProductosSugeridos = false;
+    
+    // UI State for adding items
+    private int cantidadSeleccionada = 1;
+    private List<ItemFacturaUi> itemsFactura = new List<ItemFacturaUi>();
+    
+    private IEnumerable<Cliente> clientesFiltrados
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(busquedaCliente) || clientes == null)
+                return Enumerable.Empty<Cliente>();
+            
+            var busqueda = busquedaCliente.ToLower();
+            return clientes.Where(c => 
+                c.NombreRazonSocial.ToLower().Contains(busqueda) ||
+                c.Identificacion.Contains(busqueda)
+            );
+        }
+    }
+    
+    private IEnumerable<ProductoDto> productosFiltrados
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(busquedaProducto) || productos == null)
+                return Enumerable.Empty<ProductoDto>();
+            
+            var busqueda = busquedaProducto.ToLower();
+            return productos.Where(p => 
+                p.Nombre.ToLower().Contains(busqueda) ||
+                p.Codigo.ToLower().Contains(busqueda)
+            );
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            clientes = await FacturacionService.GetClientesAsync();
+            productos = await FacturacionService.GetProductosAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando datos: {ex.Message}");
+        }
+    }
+
+    private void SeleccionarCliente(Cliente cliente)
+    {
+        clienteSeleccionado = cliente;
+        factura.ClienteId = cliente.Id;
+        busquedaCliente = cliente.NombreRazonSocial;
+        mostrarClientesSugeridos = false;
+    }
+    
+    private void LimpiarCliente()
+    {
+        clienteSeleccionado = null;
+        factura.ClienteId = 0;
+        busquedaCliente = "";
+    }
+    
+    private void SeleccionarProducto(ProductoDto producto)
+    {
+        productoSeleccionado = producto;
+        busquedaProducto = producto.Nombre;
+        mostrarProductosSugeridos = false;
+    }
+    
+    private void LimpiarProducto()
+    {
+        productoSeleccionado = null;
+        busquedaProducto = "";
+    }
+    
+    private void AgregarProducto()
+    {
+        if (productoSeleccionado != null)
+        {
+            var item = new ItemFacturaUi
+            {
+                ProductoId = productoSeleccionado.Id,
+                NombreProducto = productoSeleccionado.Nombre,
+                Cantidad = cantidadSeleccionada,
+                PrecioUnitario = productoSeleccionado.PrecioVenta,
+                AplicaIva = productoSeleccionado.AplicaIva
+            };
+            itemsFactura.Add(item);
+            
+            // Reset selection
+            LimpiarProducto();
+            cantidadSeleccionada = 1;
+        }
+    }
+
+    private void EliminarItem(ItemFacturaUi item)
+    {
+        itemsFactura.Remove(item);
+    }
+
+    private decimal Subtotal => itemsFactura.Sum(i => i.Total);
+    private decimal Iva => itemsFactura.Sum(i => i.AplicaIva ? i.Total * 0.15m : 0);
+    private decimal Total => Subtotal + Iva;
+    private bool EsValida => factura.ClienteId > 0 && itemsFactura.Any();
+
+    private async Task GuardarFactura()
+    {
+        factura.Detalles = itemsFactura.Select(i => new DetalleFacturaCreateDto
+        {
+            ProductoId = i.ProductoId,
+            Cantidad = i.Cantidad
+        }).ToList();
+
+        try
+        {
+            var created = await FacturacionService.CrearFacturaAsync(factura);
+            if (created != null)
+            {
+                // Navigate to details or show success
+                // For now, let's try to send to SRI immediately or ask user
+                bool confirm = await JS.InvokeAsync<bool>("confirm", "Factura guardada. ¿Desea enviarla al SRI ahora?");
+                if (confirm)
+                {
+                    await EnviarSRI(created.Id);
+                }
+                else
+                {
+                    Navigation.NavigateTo("/facturas"); // Assuming a list page exists or stay here
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error al guardar: {ex.Message}");
+        }
+    }
+
+    private async Task EnviarSRI(int idFactura)
+    {
+        try
+        {
+            await FacturacionService.EnviarAlSriAsync(idFactura);
+            await JS.InvokeVoidAsync("alert", "Factura enviada y autorizada por el SRI exitosamente.");
+            Navigation.NavigateTo("/facturas");
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error al enviar al SRI: {ex.Message}");
+        }
+    }
+
+    private void Cancelar()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    public class ItemFacturaUi
+    {
+        public int ProductoId { get; set; }
+        public string NombreProducto { get; set; }
+        public int Cantidad { get; set; }
+        public decimal PrecioUnitario { get; set; }
+        public bool AplicaIva { get; set; }
+        public decimal Total => Cantidad * PrecioUnitario;
+    }
+}

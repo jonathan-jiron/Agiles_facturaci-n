@@ -14,8 +14,6 @@ public class FacturaRepository : IFacturaRepository
 
     public FacturaRepository(ApplicationDbContext db) => _db = db;
 
-    // ... (Otros m�todos) ...
-
     public async Task<Factura?> ObtenerFacturaParaSriAsync(int id)
     {
         // CARGA COMPLETA (EAGER LOADING) para el generador de XML:
@@ -28,11 +26,9 @@ public class FacturaRepository : IFacturaRepository
 
     public async Task<Factura?> ObtenerPorIdAsync(int id)
     {
-        // Retiene el m�todo simple (sin Includes)
         return await _db.Facturas.FirstOrDefaultAsync(f => f.Id == id);
     }
 
-    // ... (El resto de m�todos como AgregarAsync, UpdateAsync, GetClienteById, etc.)
     public Task UpdateAsync(Factura factura)
     {
         _db.Facturas.Update(factura);
@@ -62,6 +58,8 @@ public class FacturaRepository : IFacturaRepository
 
     public Task<List<Factura>> ListarAsync()
     {
-        return _db.Facturas.ToListAsync();
+        return _db.Facturas
+            .Include(f => f.Cliente)
+            .ToListAsync();
     }
 }

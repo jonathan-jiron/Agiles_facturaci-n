@@ -29,8 +29,10 @@ public class FacturaDto
     public string Numero { get; set; } = string.Empty;
     public DateTime Fecha { get; set; }
     public int ClienteId { get; set; }
+    public string? ClienteNombre { get; set; }
     public decimal Subtotal { get; set; }
     public decimal Iva { get; set; }
     public decimal Total { get; set; }
+    public string? EstadoSRI { get; set; }
     public List<DetalleFacturaDto> Detalles { get; set; } = new List<DetalleFacturaDto>();
 }

@@ -27,4 +27,9 @@
   <ItemGroup>
     <Folder Include="Connected Services\" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="Native\libwkhtmltox.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

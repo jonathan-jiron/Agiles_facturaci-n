@@ -21,7 +21,7 @@ namespace Infrastructure.Services
 
         public byte[] FirmarXml(string xmlComprobante)
         {
-            string p12Path = _config["SRI:CertificadoRuta"] ?? throw new ArgumentNullException("SRI:CertificadoRuta");
+            string p12Path = _config["SRI:CertificadoPath"] ?? throw new ArgumentNullException("SRI:CertificadoPath");
             string p12Pass = _config["SRI:CertificadoPassword"] ?? throw new ArgumentNullException("SRI:CertificadoPassword");
 
             if (!File.Exists(p12Path))

@@ -1,5 +1,6 @@
 ﻿using Application.Interfaces;
 using Microsoft.Extensions.Configuration;
+using System;
 using System.IO;
 using System.Net;
 using System.Net.Mail;
@@ -15,12 +16,13 @@ namespace Infrastructure.Services
 
         public async Task Enviar(string destinatario, byte[] xml, byte[] pdf)
         {
-            if (string.IsNullOrEmpty(destinatario))
+            if (string.IsNullOrWhiteSpace(destinatario))
                 throw new ArgumentException("El destinatario no puede ser nulo o vacío.", nameof(destinatario));
 
-            var mail = new MailAddress(destinatario);
+            var trimmedDest = destinatario.Trim();
+            var toAddress = new MailAddress(trimmedDest);
 
-            var smtpUser = _config["SMTP:User"];
+            var smtpUser = _config["SMTP:User"]?.Trim();
             var smtpHost = _config["SMTP:Host"];
             var smtpPass = _config["SMTP:Pass"];
             var smtpPortStr = _config["SMTP:Port"];
@@ -31,14 +33,17 @@ namespace Infrastructure.Services
             if (!int.TryParse(smtpPortStr, out int smtpPort))
                 throw new InvalidOperationException("El puerto SMTP no es válido.");
 
+            // Ensure From address is a valid email. If smtpUser is not a full email, append a dummy domain.
+            var fromAddressString = smtpUser.Contains("@") ? smtpUser : $"{smtpUser}@example.com";
+            var fromAddress = new MailAddress(fromAddressString);
+
             var mailMessage = new MailMessage
             {
-                From = new MailAddress(smtpUser),
+                From = fromAddress,
                 Subject = "Factura electrónica autorizada",
-                Body = "Adjuntamos su factura autorizada por el SRI.",
+                Body = "Adjuntamos su factura autorizada por el SRI."
             };
-
-            mailMessage.To.Add(mail);
+            mailMessage.To.Add(toAddress);
             mailMessage.Attachments.Add(new Attachment(new MemoryStream(xml), "factura.xml"));
             mailMessage.Attachments.Add(new Attachment(new MemoryStream(pdf), "factura.pdf"));
 

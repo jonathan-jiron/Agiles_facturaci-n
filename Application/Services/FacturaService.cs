@@ -20,7 +20,7 @@ public class FacturaService
 
     public async Task<Factura> CrearFacturaAsync(FacturaCreateDto dto)
     {
-        var numero = "FAC-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+        var numero = "001-001-" + DateTime.UtcNow.ToString("HHmmssfff");
         var factura = new Factura
         {
             Numero = numero,
@@ -56,5 +56,20 @@ public class FacturaService
 
     public Task<Factura?> ObtenerPorIdAsync(int id) => _facturaRepo.ObtenerPorIdAsync(id);
 
-    public Task<List<Factura>> ListarAsync() => _facturaRepo.ListarAsync();
+    public async Task<List<FacturaDto>> ListarAsync()
+    {
+        var facturas = await _facturaRepo.ListarAsync();
+        return facturas.Select(f => new FacturaDto
+        {
+            Id = f.Id,
+            Numero = f.Numero,
+            Fecha = f.Fecha,
+            ClienteId = f.ClienteId,
+            ClienteNombre = f.Cliente?.NombreRazonSocial,
+            Subtotal = f.Subtotal,
+            Iva = f.Iva,
+            Total = f.Total,
+            EstadoSRI = f.EstadoSRI
+        }).ToList();
+    }
 }

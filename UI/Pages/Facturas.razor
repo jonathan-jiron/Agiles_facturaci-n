@@ -1,0 +1,152 @@
+@page "/facturas"
+@using UI.DTOs
+@using UI.Services
+@inject FacturacionService FacturacionService
+@inject NavigationManager Navigation
+
+<PageTitle>Facturas</PageTitle>
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h3>📄 Facturas Electrónicas</h3>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary" @onclick="NuevaFactura">
+                <i class="bi bi-plus-circle"></i> Nueva Factura
+            </button>
+        </div>
+    </div>
+
+    @if (cargando)
+    {
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+    }
+    else if (facturas == null || !facturas.Any())
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No hay facturas registradas. 
+            <a href="/facturacion" class="alert-link">Crear primera factura</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Número</th>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Subtotal</th>
+                        <th>IVA</th>
+                        <th>Total</th>
+                        <th>Estado SRI</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var factura in facturas)
+                    {
+                        <tr>
+                            <td><code>@factura.Numero</code></td>
+                            <td>@factura.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>@factura.ClienteNombre</td>
+                            <td class="text-end">$@factura.Subtotal.ToString("N2")</td>
+                            <td class="text-end">$@factura.Iva.ToString("N2")</td>
+                            <td class="text-end"><strong>$@factura.Total.ToString("N2")</strong></td>
+                            <td>
+                                @if (factura.EstadoSRI == "AUTORIZADO")
+                                {
+                                    <span class="badge bg-success">✓ Autorizado</span>
+                                }
+                                else if (factura.EstadoSRI == "DEVUELTA" || factura.EstadoSRI == "NO AUTORIZADO")
+                                {
+                                    <span class="badge bg-danger">✗ Rechazado</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning">⏳ Pendiente</span>
+                                }
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" @onclick="() => VerDetalle(factura.Id)" title="Ver detalle">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                @if (factura.EstadoSRI == "AUTORIZADO")
+                                {
+                                    <button class="btn btn-sm btn-outline-success" @onclick="() => DescargarPdf(factura.Id)" title="Descargar PDF">
+                                        <i class="bi bi-file-pdf"></i>
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private List<FacturaListDto>? facturas;
+    private bool cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarFacturas();
+    }
+
+    private async Task CargarFacturas()
+    {
+        try
+        {
+            cargando = true;
+            var facturasDto = await FacturacionService.ObtenerFacturasAsync();
+            
+            // Mapear a FacturaListDto
+            facturas = facturasDto.Select(f => new FacturaListDto
+            {
+                Id = f.Id,
+                Numero = f.Numero,
+                Fecha = f.Fecha,
+                ClienteNombre = f.ClienteNombre ?? "Sin cliente",
+                Subtotal = f.Subtotal,
+                Iva = f.Iva,
+                Total = f.Total,
+                EstadoSRI = f.EstadoSRI ?? "Pendiente"
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar facturas: {ex.Message}");
+            facturas = new List<FacturaListDto>();
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void NuevaFactura()
+    {
+        Navigation.NavigateTo("/facturacion");
+    }
+
+    private void VerDetalle(int id)
+    {
+        // TODO: Implementar vista de detalle
+        Console.WriteLine($"Ver detalle de factura {id}");
+    }
+
+    private void DescargarPdf(int id)
+    {
+        // Abrir en nueva pestaña para descargar
+        Navigation.NavigateTo($"http://localhost:5240/api/pdf/factura/{id}", true);
+    }
+}
+

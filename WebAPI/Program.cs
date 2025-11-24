@@ -44,32 +44,13 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Configuración de DbContext
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-// Configuración de CORS
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowBlazorClient",
-        policy =>
-        {
-            policy.WithOrigins(
-                    "http://localhost:5241",
-                    "https://localhost:5241"
-                )
-                .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials();
-        });
-});
-
-// Configuración de JWT Authentication
+// JWT configuration
 var jwtCfg = builder.Configuration.GetSection("Jwt");
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer(opt =>
     {
-        opt.TokenValidationParameters = new TokenValidationParameters {
+        opt.TokenValidationParameters = new TokenValidationParameters
+        {
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
@@ -82,6 +63,19 @@ builder.Services.AddAuthentication("Bearer")
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowBlazorClient", policy =>
+        policy.WithOrigins("http://localhost:5241")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials());
+});
+
+// EF Core DbContext with increased command timeout
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions => sqlOptions.CommandTimeout(180)));
 
 // Facturación: repositorios y servicios
 builder.Services.AddScoped<IFacturaRepository, FacturaRepository>();
@@ -89,13 +83,15 @@ builder.Services.AddScoped<IDetalleFacturaRepository, DetalleFacturaRepository>(
 builder.Services.AddScoped<FacturaService>();
 builder.Services.AddScoped<IClaveAccesoService, ClaveAccesoService>();
 builder.Services.AddScoped<IXmlValidator, XmlValidator>();
+builder.Services.AddScoped<IXmlGenerator, XmlGenerator>();
 builder.Services.AddScoped<IXmlSigner, XmlSigner>();
 builder.Services.AddScoped<ISriClientService, SriClientService>();
 builder.Services.AddScoped<IPdfGenerator, PdfGenerator>();
 builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<IProductLookup, DummyProductLookup>();
+builder.Services.AddScoped<IProductLookup, ProductLookup>();
+builder.Services.AddScoped<IFacturacionElectronicaService, FacturacionElectronicaService>();
 
-// PDF
+// PDF generator
 builder.Services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
 
 var app = builder.Build();
@@ -108,22 +104,24 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowBlazorClient");
-
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Use(async (ctx, next) =>
 {
-    try {
+    try
+    {
         await next();
-    } catch (Exception ex) {
+    }
+    catch (Exception ex)
+    {
         ctx.Response.StatusCode = 500;
         await ctx.Response.WriteAsJsonAsync(new { error = "Error interno", trace = ex.Message });
     }
 });
 
-// Seed admin
+// Seed admin data
 await DbInitializer.InitializeAsync(app.Services);
+
 app.Run();
