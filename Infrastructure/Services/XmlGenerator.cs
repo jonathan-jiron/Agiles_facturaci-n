@@ -39,12 +39,12 @@ public class XmlGenerator : IXmlGenerator
                 new XElement(ns + "infoTributaria",
                     new XElement(ns + "ambiente", _config["SRI:Ambiente"]), // 1: Pruebas
                     new XElement(ns + "tipoEmision", _config["SRI:TipoEmision"]), // 1: Normal
-                    new XElement(ns + "razonSocial", "SU RAZÓN SOCIAL DE PRUEBA"),
-                    new XElement(ns + "ruc", _config["SRI:RucEmisor"]),
+                    new XElement(ns + "razonSocial", "PRUEBA SISTEMA DE RENTAS INTERNAS"),
+                    new XElement(ns + "ruc", "1805350442"),
                     new XElement(ns + "claveAcceso", factura.ClaveAcceso),
                     new XElement(ns + "codDoc", "01"),
-                    new XElement(ns + "estab", _config["SRI:CodigoEstablecimiento"]),
-                    new XElement(ns + "ptoEmi", _config["SRI:PuntoEmision"]),
+                    new XElement(ns + "estab", "001"),
+                    new XElement(ns + "ptoEmi", "001"),
                     new XElement(ns + "secuencial", factura.Numero!.Split('-')[2]),
                     new XElement(ns + "dirMatriz", "DIRECCIÓN MATRIZ")
                 ),
@@ -60,11 +60,11 @@ public class XmlGenerator : IXmlGenerator
                     new XElement(ns + "totalSinImpuestos", factura.Subtotal.ToString("F2", culture)),
                     new XElement(ns + "totalDescuento", "0.00"), // Asumo 0.00
 
-                    // TOTALES CON IMPUESTOS (ASUMO UN SOLO IMPUESTO: IVA 12%)
+                    // TOTALES CON IMPUESTOS (ASUMO UN SOLO IMPUESTO: IVA 15%)
                     new XElement(ns + "totalConImpuestos",
                         new XElement(ns + "totalImpuesto",
                             new XElement(ns + "codigo", "2"), // IVA
-                            new XElement(ns + "codigoPorcentaje", "2"), // 12% (Usar '0' para 0%)
+                            new XElement(ns + "codigoPorcentaje", "4"), // 15% (Usar '0' para 0%)
                             new XElement(ns + "baseImponible", factura.Subtotal.ToString("F2", culture)),
                             new XElement(ns + "valor", factura.Iva.ToString("F2", culture))
                         )
@@ -88,7 +88,7 @@ public class XmlGenerator : IXmlGenerator
                             new XElement(ns + "impuestos",
                                 new XElement(ns + "impuesto",
                                     new XElement(ns + "codigo", "2"), // IVA
-                                    new XElement(ns + "codigoPorcentaje", "2"), // 12%
+                                    new XElement(ns + "codigoPorcentaje", "4"), // 12%
                                     new XElement(ns + "tarifa", "12.00"),
                                     new XElement(ns + "baseImponible", d.PrecioTotal.ToString("F2", culture)),
                                     new XElement(ns + "valor", d.Iva.ToString("F2", culture))
