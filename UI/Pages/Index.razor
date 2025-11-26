@@ -61,12 +61,12 @@
                     <i class="fas fa-file-invoice-dollar"></i>
                 </div>
                 <div class="stat-content">
-                    <h3 class="stat-number">**</h3>
-                    <p class="stat-label">Facturas Emitidas</p>
+                    <span class="fs-1 fw-bold me-3">@totalFacturasMes</span>
+                    <p class="stat-label">Facturas del Mes</p>
                 </div>
                 <div class="stat-footer">
-                    <i class="fas fa-arrow-up text-success me-1"></i>
-                    <span class="text-success">+**%</span> vs. mes anterior
+                    <i class="fas fa-file-invoice me-1 text-muted"></i>
+                    <span class="text-muted">@totalFacturas total</span>
                 </div>
             </div>
         </div>
@@ -77,12 +77,21 @@
                     <i class="fas fa-dollar-sign"></i>
                 </div>
                 <div class="stat-content">
-                    <h3 class="stat-number">$**,**.**</h3>
+                    <span class="fs-1 fw-bold me-3">@($"${ventasMes:N2}")</span>
                     <p class="stat-label">Ventas del Mes</p>
                 </div>
                 <div class="stat-footer">
-                    <i class="fas fa-arrow-up text-success me-1"></i>
-                    <span class="text-success">+**%</span> vs. mes anterior
+                    @if (crecimientoVentas >= 0)
+                    {
+                        <i class="fas fa-arrow-up text-success me-1"></i>
+                        <span class="text-success">+@($"{crecimientoVentas:F1}")%</span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-arrow-down text-danger me-1"></i>
+                        <span class="text-danger">@($"{crecimientoVentas:F1}")%</span>
+                    }
+                    <span class="text-muted"> vs. mes anterior</span>
                 </div>
             </div>
         </div>
@@ -555,10 +564,15 @@
 
 @inject ProductoService productoService
 @inject AuthService authService
+@inject FacturaService facturaService
 
 @code {
     private int totalClientes;
     private int totalProductos;
+    private int totalFacturas;
+    private int totalFacturasMes;
+    private decimal ventasMes;
+    private decimal crecimientoVentas;
     private List<EventoActividad> actividades = new();
 
     protected override async Task OnInitializedAsync()
@@ -566,5 +580,10 @@
         totalClientes = await authService.GetClientesCountAsync();
         totalProductos = await productoService.GetProductosCountAsync();
         actividades = await productoService.GetActividadRecienteAsync();
+        
+        totalFacturas = await facturaService.GetTotalFacturasAsync();
+        totalFacturasMes = await facturaService.GetFacturasMesActualAsync();
+        ventasMes = await facturaService.GetVentasMesActualAsync();
+        crecimientoVentas = await facturaService.GetCrecimientoVentasAsync();
     }
 }

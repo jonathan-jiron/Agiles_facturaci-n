@@ -85,6 +85,8 @@ builder.Services.AddScoped<IDetalleFacturaRepository, DetalleFacturaRepository>(
 builder.Services.AddScoped<FacturaService>();
 // Product lookup (obtiene precio desde la BD)
 builder.Services.AddScoped<Application.Interfaces.IProductLookup, Infrastructure.Services.ProductLookup>();
+// Lote allocator (asigna lotes por FIFO y decrementa stock)
+builder.Services.AddScoped<Application.Interfaces.ILoteAllocator, Infrastructure.Services.LoteAllocator>();
 
 var app = builder.Build();
 

@@ -26,5 +26,6 @@ builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().Cre
 
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ProductoService>();
+builder.Services.AddScoped<FacturaService>();
 
 await builder.Build().RunAsync();
