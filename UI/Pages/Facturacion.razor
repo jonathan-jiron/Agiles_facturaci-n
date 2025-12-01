@@ -1,0 +1,334 @@
+@page "/facturacion"
+@attribute [Authorize]
+@layout MainLayout
+@inject FacturaService FacturaService
+@inject NotificationService NotificationService
+@inject NavigationManager Navigation
+
+<PageTitle>Nueva Factura - Sistema de Facturación</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="fw-bold text-primary">
+                <i class="fas fa-file-invoice me-2"></i>Nueva Factura Electrónica
+            </h2>
+            <p class="text-muted">Complete los datos para generar una nueva factura</p>
+        </div>
+    </div>
+
+    @if (cargando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-3">Generando factura...</p>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-user me-2"></i>Información del Cliente</h5>
+                    </div>
+                    <div class="card-body">
+                        <ClienteSelector @bind-SelectedClienteId="clienteSeleccionadoId" 
+                                       IsValid="@clienteValido"
+                                       ValidationMessage="@clienteValidationMessage" />
+                    </div>
+                </div>
+
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-boxes me-2"></i>Productos</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <ProductoSelector @bind-SelectedProductoId="productoSeleccionadoId"
+                                                OnProductoSelected="OnProductoSeleccionado"
+                                                Label="Seleccione un producto" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Cantidad</label>
+                                <input type="number" class="form-control" @bind="cantidadProducto" 
+                                       min="1" max="@(productoActual?.Stock ?? 999)" />
+                            </div>
+                            <div class="col-md-1 d-flex align-items-end">
+                                <button class="btn btn-success w-100" @onclick="AgregarProducto" 
+                                        disabled="@(productoSeleccionadoId == 0 || cantidadProducto <= 0)">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        @if (detalles.Any())
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Producto</th>
+                                            <th class="text-end">Cantidad</th>
+                                            <th class="text-end">Precio Unit.</th>
+                                            <th class="text-end">Subtotal</th>
+                                            <th class="text-end">IVA (12%)</th>
+                                            <th class="text-end">Total</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var (detalle, index) in detalles.Select((d, i) => (d, i)))
+                                        {
+                                            <tr>
+                                                <td>@detalle.ProductoNombre</td>
+                                                <td class="text-end">@detalle.Cantidad</td>
+                                                <td class="text-end">$@detalle.PrecioUnitario.ToString("N2")</td>
+                                                <td class="text-end">$@detalle.Subtotal.ToString("N2")</td>
+                                                <td class="text-end">$@detalle.IvaLinea.ToString("N2")</td>
+                                                <td class="text-end fw-bold">$@detalle.TotalLinea.ToString("N2")</td>
+                                                <td class="text-end">
+                                                    <button class="btn btn-sm btn-danger" @onclick="() => EliminarProducto(index)">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>No hay productos agregados. Seleccione productos para comenzar.
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card shadow-sm sticky-top" style="top: 20px;">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-calculator me-2"></i>Resumen</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Subtotal:</span>
+                            <span class="fw-bold">$@subtotal.ToString("N2")</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>IVA (12%):</span>
+                            <span class="fw-bold">$@iva.ToString("N2")</span>
+                        </div>
+                        <hr />
+                        <div class="d-flex justify-content-between mb-3">
+                            <span class="fs-5 fw-bold">Total:</span>
+                            <span class="fs-4 fw-bold text-success">$@total.ToString("N2")</span>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-primary btn-lg" @onclick="GenerarFactura" 
+                                    disabled="@(!PuedeGenerarFactura())">
+                                <i class="fas fa-check-circle me-2"></i>Generar Factura
+                            </button>
+                            <button class="btn btn-outline-secondary" @onclick="LimpiarFormulario">
+                                <i class="fas fa-times me-2"></i>Cancelar
+                            </button>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(errorGeneral))
+                        {
+                            <div class="alert alert-danger mt-3">
+                                <i class="fas fa-exclamation-triangle me-2"></i>@errorGeneral
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private int clienteSeleccionadoId = 0;
+    private int productoSeleccionadoId = 0;
+    private int cantidadProducto = 1;
+    private ProductoSelector.ProductoDto? productoActual;
+
+    private List<DetalleItem> detalles = new();
+    private bool cargando = false;
+    private bool clienteValido = true;
+    private string clienteValidationMessage = "";
+    private string errorGeneral = "";
+
+    private decimal subtotal => detalles.Sum(d => d.Subtotal);
+    private decimal iva => detalles.Sum(d => d.IvaLinea);
+    private decimal total => subtotal + iva;
+
+    private void OnProductoSeleccionado(ProductoSelector.ProductoDto? producto)
+    {
+        productoActual = producto;
+        if (producto != null && producto.Stock > 0)
+        {
+            cantidadProducto = 1;
+        }
+    }
+
+    private void AgregarProducto()
+    {
+        if (productoActual == null || productoSeleccionadoId == 0 || cantidadProducto <= 0)
+        {
+            NotificationService.ShowWarning("Debe seleccionar un producto válido y cantidad mayor a 0");
+            return;
+        }
+
+        if (cantidadProducto > productoActual.Stock)
+        {
+            NotificationService.ShowError($"Stock insuficiente. Disponible: {productoActual.Stock}");
+            return;
+        }
+
+        var detalleExistente = detalles.FirstOrDefault(d => d.ProductoId == productoSeleccionadoId);
+        if (detalleExistente != null)
+        {
+            var nuevaCantidad = detalleExistente.Cantidad + cantidadProducto;
+            if (nuevaCantidad > productoActual.Stock)
+            {
+                NotificationService.ShowError($"No puede agregar más unidades. Stock máximo: {productoActual.Stock}");
+                return;
+            }
+            detalleExistente.Cantidad = nuevaCantidad;
+            detalleExistente.RecalcularTotales();
+        }
+        else
+        {
+            var detalle = new DetalleItem
+            {
+                ProductoId = productoActual.Id,
+                ProductoNombre = productoActual.Nombre,
+                Cantidad = cantidadProducto,
+                PrecioUnitario = productoActual.PrecioVenta
+            };
+            detalle.RecalcularTotales();
+            detalles.Add(detalle);
+        }
+
+        // Limpiar selección
+        productoSeleccionadoId = 0;
+        cantidadProducto = 1;
+        productoActual = null;
+
+        NotificationService.ShowSuccess("Producto agregado correctamente");
+    }
+
+    private void EliminarProducto(int index)
+    {
+        if (index >= 0 && index < detalles.Count)
+        {
+            detalles.RemoveAt(index);
+            NotificationService.ShowInfo("Producto eliminado");
+        }
+    }
+
+    private bool PuedeGenerarFactura()
+    {
+        return clienteSeleccionadoId > 0 && detalles.Any() && !cargando;
+    }
+
+    private async Task GenerarFactura()
+    {
+        errorGeneral = "";
+        clienteValido = true;
+        clienteValidationMessage = "";
+
+        // Validaciones
+        if (clienteSeleccionadoId == 0)
+        {
+            clienteValido = false;
+            clienteValidationMessage = "Debe seleccionar un cliente";
+            NotificationService.ShowError("Debe seleccionar un cliente");
+            return;
+        }
+
+        if (!detalles.Any())
+        {
+            errorGeneral = "Debe agregar al menos un producto";
+            NotificationService.ShowError(errorGeneral);
+            return;
+        }
+
+        try
+        {
+            cargando = true;
+
+            var facturaDto = new FacturaCreateDto
+            {
+                ClienteId = clienteSeleccionadoId,
+                Detalles = detalles.Select(d => new DetalleFacturaCreateDto
+                {
+                    ProductoId = d.ProductoId,
+                    Cantidad = d.Cantidad
+                }).ToList()
+            };
+
+            var resultado = await FacturaService.CrearFacturaAsync(facturaDto);
+
+            if (resultado != null)
+            {
+                NotificationService.ShowSuccess($"Factura {resultado.Numero} generada exitosamente");
+                await Task.Delay(1500); // Dar tiempo para ver la notificación
+                Navigation.NavigateTo("/facturas");
+            }
+            else
+            {
+                errorGeneral = "Error al generar la factura";
+                NotificationService.ShowError(errorGeneral);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorGeneral = $"Error: {ex.Message}";
+            NotificationService.ShowError($"Error al generar factura: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void LimpiarFormulario()
+    {
+        clienteSeleccionadoId = 0;
+        productoSeleccionadoId = 0;
+        cantidadProducto = 1;
+        productoActual = null;
+        detalles.Clear();
+        errorGeneral = "";
+        clienteValido = true;
+        clienteValidationMessage = "";
+        NotificationService.ShowInfo("Formulario limpiado");
+    }
+
+    private class DetalleItem
+    {
+        public int ProductoId { get; set; }
+        public string ProductoNombre { get; set; } = "";
+        public int Cantidad { get; set; }
+        public decimal PrecioUnitario { get; set; }
+        public decimal Subtotal { get; set; }
+        public decimal IvaLinea { get; set; }
+        public decimal TotalLinea { get; set; }
+
+        public void RecalcularTotales()
+        {
+            Subtotal = PrecioUnitario * Cantidad;
+            IvaLinea = Math.Round(Subtotal * 0.12m, 2);
+            TotalLinea = Subtotal + IvaLinea;
+        }
+    }
+}

@@ -27,5 +27,6 @@ builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().Cre
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ProductoService>();
 builder.Services.AddScoped<FacturaService>();
+builder.Services.AddSingleton<NotificationService>();
 
 await builder.Build().RunAsync();

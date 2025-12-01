@@ -93,7 +93,62 @@ public class FacturaService
             return 0;
         }
     }
+
+    public async Task<FacturaDto?> CrearFacturaAsync(FacturaCreateDto dto)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync("api/facturas", dto);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<FacturaDto>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creando factura: {ex.Message}");
+            throw;
+        }
+    }
+
+    public async Task<FacturaDto?> ObtenerFacturaPorIdAsync(int id)
+    {
+        try
+        {
+            return await _http.GetFromJsonAsync<FacturaDto>($"api/facturas/{id}");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<List<FacturaListDto>> ListarFacturasAsync()
+    {
+        try
+        {
+            var facturas = await _http.GetFromJsonAsync<List<FacturaListDto>>("api/facturas");
+            return facturas ?? new List<FacturaListDto>();
+        }
+        catch
+        {
+            return new List<FacturaListDto>();
+        }
+    }
+
+    public async Task<bool> EnviarFacturaPorEmailAsync(int facturaId, string email)
+    {
+        try
+        {
+            // Placeholder - implementar cuando el backend tenga el endpoint
+            var response = await _http.PostAsJsonAsync($"api/facturas/{facturaId}/enviar-email", new { email });
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }
+
 
 public class FacturaListDto
 {
@@ -103,4 +158,45 @@ public class FacturaListDto
     public decimal Subtotal { get; set; }
     public decimal Iva { get; set; }
     public decimal Total { get; set; }
+    public string Estado { get; set; } = "Generada";
+    public string? ClienteNombre { get; set; }
 }
+
+public class FacturaCreateDto
+{
+    public int ClienteId { get; set; }
+    public List<DetalleFacturaCreateDto> Detalles { get; set; } = new();
+}
+
+public class DetalleFacturaCreateDto
+{
+    public int ProductoId { get; set; }
+    public int Cantidad { get; set; }
+}
+
+public class FacturaDto
+{
+    public int Id { get; set; }
+    public string Numero { get; set; } = string.Empty;
+    public DateTime Fecha { get; set; }
+    public int ClienteId { get; set; }
+    public string? ClienteNombre { get; set; }
+    public string? ClienteIdentificacion { get; set; }
+    public string? ClienteEmail { get; set; }
+    public decimal Subtotal { get; set; }
+    public decimal Iva { get; set; }
+    public decimal Total { get; set; }
+    public string Estado { get; set; } = "Generada";
+    public List<DetalleFacturaDto> Detalles { get; set; } = new();
+}
+
+public class DetalleFacturaDto
+{
+    public int ProductoId { get; set; }
+    public string? ProductoNombre { get; set; }
+    public int Cantidad { get; set; }
+    public decimal PrecioUnitario { get; set; }
+    public decimal Iva { get; set; }
+    public decimal Total { get; set; }
+}
+

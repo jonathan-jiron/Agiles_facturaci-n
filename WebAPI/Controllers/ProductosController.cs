@@ -245,6 +245,9 @@ namespace WebAPI.Controllers
         public decimal PrecioVenta { get; set; }
         public bool AplicaIva { get; set; }
         public List<LoteDto> Lotes { get; set; } = new();
+        
+        // Stock total calculado sumando cantidades de todos los lotes
+        public int Stock => Lotes?.Sum(l => l.Cantidad) ?? 0;
     }
     public class LoteDto
     {
