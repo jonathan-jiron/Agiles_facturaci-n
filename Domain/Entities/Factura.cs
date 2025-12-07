@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 
 namespace Domain.Entities;
+using Domain.Enums;
 
 public class Factura
 {
@@ -24,5 +25,18 @@ public class Factura
     public decimal Total { get; set; }
 
     // Estado del comprobante
-    public string Estado { get; set; } = "Emitida";
+    public EstadoFactura Estado { get; set; } = EstadoFactura.Emitida;
+
+    // NUEVOS CAMPOS PARA SRI Y CONTIFICO
+    [MaxLength(10)]
+    public string Establecimiento { get; set; } = string.Empty;
+
+    [MaxLength(10)]
+    public string PuntoEmision { get; set; } = string.Empty;
+
+    [MaxLength(30)]
+    public string FormaPago { get; set; } = string.Empty;
+
+    [MaxLength(300)]
+    public string Observaciones { get; set; } = string.Empty;
 }

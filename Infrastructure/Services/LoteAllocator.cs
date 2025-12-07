@@ -1,4 +1,5 @@
 using Application.Interfaces;
+using Domain.Entities;
 using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,45 +14,44 @@ public class LoteAllocator : ILoteAllocator
         _db = db;
     }
 
-    public async Task<List<LoteAllocation>> AllocateAsync(int productoId, int cantidadRequerida)
+    public async Task<List<Lote>> ObtenerLotesDisponiblesAsync(int productoId)
     {
-        if (cantidadRequerida <= 0)
-            throw new ArgumentException("La cantidad requerida debe ser mayor a 0.", nameof(cantidadRequerida));
-
-        // Obtener lotes disponibles ordenados por FIFO (FechaIngreso ASC)
-        var lotes = await _db.Lotes
+        return await _db.Lotes
             .Where(l => l.ProductoId == productoId && l.Cantidad > 0)
             .OrderBy(l => l.FechaIngreso)
             .ToListAsync();
+    }
 
-        var stockDisponible = lotes.Sum(l => l.Cantidad);
-        if (stockDisponible < cantidadRequerida)
-        {
-            throw new InvalidOperationException(
-                $"Stock insuficiente. Disponible: {stockDisponible}, Requerido: {cantidadRequerida}");
-        }
+    public async Task DescontarStockAsync(int loteId, int cantidad)
+    {
+        var lote = await _db.Lotes.FindAsync(loteId);
+        if (lote == null)
+            throw new InvalidOperationException("Lote no encontrado");
 
-        var allocations = new List<LoteAllocation>();
-        var pendiente = cantidadRequerida;
+        if (lote.Cantidad < cantidad)
+            throw new InvalidOperationException("Stock insuficiente en el lote");
+
+        lote.Cantidad -= cantidad;
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task<List<LoteAllocation>> AllocateAsync(int productoId, int cantidadRequerida)
+    {
+        var lotes = await ObtenerLotesDisponiblesAsync(productoId);
+        var resultado = new List<LoteAllocation>();
+        int restante = cantidadRequerida;
 
         foreach (var lote in lotes)
         {
-            if (pendiente <= 0) break;
-
-            var consumir = Math.Min(lote.Cantidad, pendiente);
-            lote.Cantidad -= consumir;
-            pendiente -= consumir;
-
-            allocations.Add(new LoteAllocation
-            {
-                LoteId = lote.Id,
-                CantidadConsumida = consumir
-            });
+            if (restante <= 0) break;
+            int consumir = Math.Min(lote.Cantidad, restante);
+            resultado.Add(new LoteAllocation { LoteId = lote.Id, CantidadConsumida = consumir });
+            restante -= consumir;
         }
 
-        // Guardar cambios en la BD (decrementar cantidades)
-        await _db.SaveChangesAsync();
+        if (restante > 0)
+            throw new InvalidOperationException("Stock insuficiente para el producto");
 
-        return allocations;
+        return resultado;
     }
 }

@@ -28,5 +28,6 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ProductoService>();
 builder.Services.AddScoped<FacturaService>();
 builder.Services.AddSingleton<NotificationService>();
+builder.Services.AddSingleton<FacturaEventService>();
 
 await builder.Build().RunAsync();

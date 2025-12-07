@@ -7,10 +7,14 @@
 @using System.ComponentModel.DataAnnotations
 @using Domain.Entities
 
-<h3 class="mb-4"><i class="fa-solid fa-users me-2"></i>Gestión de Clientes</h3>
+<PageTitle>Gestión de Clientes</PageTitle>
 
-<div class="page-container">
-    <div class="card shadow-sm border-0 mb-4">
+<div class="content-area">
+    <h2 class="fw-bold text-primary mb-4">
+        <i class="fa-solid fa-users me-2"></i>Gestión de Clientes
+    </h2>
+
+    <div class="card shadow-sm mb-4">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <button class="btn btn-primary mb-0" @onclick="MostrarNuevoCliente">
@@ -25,13 +29,20 @@
                         <option value="Identificacion">Identificación</option>
                         <option value="NombreRazonSocial">Nombre / Razón Social</option>
                         <option value="Telefono">Teléfono</option>
-                        <option value="Correo">Correo</option>
+                        <option value="Email">Correo</option>
                         <option value="Direccion">Dirección</option>
                     </select>
                     <input class="form-control form-control-sm" style="width:360px" placeholder="Buscar clientes..." @bind="cliSearchTerm" @bind:event="oninput" />
                     <button class="btn btn-sm btn-outline-secondary" @onclick="ClearCliFilter" title="Limpiar búsqueda"><i class="fa-solid fa-xmark"></i></button>
                 </div>
             </div>
+
+            @if (!string.IsNullOrEmpty(mensajeError))
+            {
+                <div class="alert alert-danger mb-3">
+                    <i class="fa-solid fa-exclamation-triangle me-2"></i>@mensajeError
+                </div>
+            }
 
             @if (filteredClientes == null)
             {
@@ -49,9 +60,9 @@
             else
             {
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped align-middle">
-                        <thead class="table-primary">
-                            <tr>
+                    <table class="table table-hover table-striped align-middle" style="width: 100%;">
+                        <thead>
+                            <tr class="table-info">
                                 <th>Tipo ID</th>
                                 <th>Identificación</th>
                                 <th>Nombre / Razón Social</th>
@@ -62,7 +73,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var cliente in filteredClientes)
+                            @foreach (var cliente in paginadosClientes)
                             {
                                 <tr>
                                     <td>
@@ -73,7 +84,7 @@
                                     <td>@cliente.Identificacion</td>
                                     <td><strong>@cliente.NombreRazonSocial</strong></td>
                                     <td><i class="fa-solid fa-phone text-muted me-1"></i>@cliente.Telefono</td>
-                                    <td><i class="fa-solid fa-envelope text-muted me-1"></i>@cliente.Correo</td>
+                                    <td><i class="fa-solid fa-envelope text-muted me-1"></i>@cliente.Email</td>
                                     <td class="small">@cliente.Direccion</td>
                                     <td class="text-center">
                                         <div class="btn-group btn-group-sm flex-nowrap" role="group" aria-label="Acciones">
@@ -96,31 +107,63 @@
             }
         </div>
     </div>
-</div>
 
-@if (mostrarConfirmacion)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title"><i class="fa-solid fa-exclamation-triangle me-2"></i>Confirmar eliminación</h5>
-                </div>
-                <div class="modal-body">
-                    <p>@mensajeConfirmacion</p>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-danger" @onclick="ConfirmarEliminacion">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-                    <button class="btn btn-secondary" @onclick="CancelarEliminacion">
-                        Cancelar
-                    </button>
+    @if (totalPaginas > 1)
+    {
+        <div class="d-flex flex-column flex-md-row align-items-center justify-content-between mt-3">
+            <div class="mb-2 mb-md-0 text-muted small">
+                Página <span class="fw-bold">@paginaActual</span> de <span class="fw-bold">@totalPaginas</span>
+            </div>
+            <nav aria-label="Paginación de clientes">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item @(paginaActual == 1 ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => CambiarPagina(paginaActual - 1)">
+                            <i class="fas fa-angle-left"></i>
+                        </button>
+                    </li>
+                    @for (int i = 1; i <= totalPaginas; i++)
+                    {
+                        var pagina = i;
+                        <li class="page-item @(paginaActual == pagina ? "active" : "")">
+                            <button class="page-link" @onclick="() => CambiarPagina(pagina)">
+                                @pagina
+                            </button>
+                        </li>
+                    }
+                    <li class="page-item @(paginaActual == totalPaginas ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => CambiarPagina(paginaActual + 1)">
+                            <i class="fas fa-angle-right"></i>
+                        </button>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    }
+
+    @if (mostrarConfirmacion)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title"><i class="fa-solid fa-exclamation-triangle me-2"></i>Confirmar eliminación</h5>
+                    </div>
+                    <div class="modal-body">
+                        <p>@mensajeConfirmacion</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-danger" @onclick="ConfirmarEliminacion">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                        <button class="btn btn-secondary" @onclick="CancelarEliminacion">
+                            Cancelar
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-}
+    }
+</div>
 
 @code {
     private List<Cliente> clientes = new();
@@ -131,10 +174,21 @@
     private bool mostrarConfirmacion = false;
     private string mensajeConfirmacion = "";
     private Func<Task>? accionConfirmar = null;
+    private int paginaActual = 1;
+    private int itemsPorPagina = 10;
+    private int totalPaginas => (int)Math.Ceiling((double)filteredClientes.Count() / itemsPorPagina);
+    private IEnumerable<Cliente> paginadosClientes => filteredClientes.Skip((paginaActual - 1) * itemsPorPagina).Take(itemsPorPagina);
 
     protected override async Task OnInitializedAsync()
     {
-        clientes = await Http.GetFromJsonAsync<List<Cliente>>("http://localhost:5240/api/clientes") ?? new List<Cliente>();
+        try
+        {
+            clientes = await Http.GetFromJsonAsync<List<Cliente>>("http://localhost:5240/api/clientes") ?? new List<Cliente>();
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar clientes: {ex.Message}";
+        }
     }
 
     private IEnumerable<Cliente> GetFilteredClientes()
@@ -151,14 +205,14 @@
                 "Identificacion" => (c.Identificacion ?? "").ToLowerInvariant().Contains(term),
                 "NombreRazonSocial" => (c.NombreRazonSocial ?? "").ToLowerInvariant().Contains(term),
                 "Telefono" => (c.Telefono ?? "").ToLowerInvariant().Contains(term),
-                "Correo" => (c.Correo ?? "").ToLowerInvariant().Contains(term),
+                "Email" => (c.Email ?? "").ToLowerInvariant().Contains(term),
                 "Direccion" => (c.Direccion ?? "").ToLowerInvariant().Contains(term),
                 _ => (
                         (c.TipoIdentificacion ?? "").ToLowerInvariant().Contains(term)
                         || (c.Identificacion ?? "").ToLowerInvariant().Contains(term)
                         || (c.NombreRazonSocial ?? "").ToLowerInvariant().Contains(term)
                         || (c.Telefono ?? "").ToLowerInvariant().Contains(term)
-                        || (c.Correo ?? "").ToLowerInvariant().Contains(term)
+                        || (c.Email ?? "").ToLowerInvariant().Contains(term)
                         || (c.Direccion ?? "").ToLowerInvariant().Contains(term)
                     )
             };
@@ -188,42 +242,60 @@
             await accionConfirmar.Invoke();
     }
 
-    private void CancelarEliminacion()
+    private void CambiarPagina(int nuevaPagina)
     {
-        mostrarConfirmacion = false;
-        accionConfirmar = null;
+        if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas)
+        {
+            paginaActual = nuevaPagina;
+        }
     }
+
+    private string GetBadgeClass(string tipoId) =>
+        tipoId switch
+        {
+            "CEDULA" => "bg-info",
+            "RUC" => "bg-success",
+            "PASAPORTE" => "bg-warning",
+            _ => "bg-secondary"
+        };
+
+    private string GetTipoIdLabel(string tipoId) =>
+        tipoId switch
+        {
+            "CEDULA" => "Cédula",
+            "RUC" => "RUC",
+            "PASAPORTE" => "Pasaporte",
+            _ => tipoId
+        };
+
+    private string ObtenerMensajeEliminarCliente(Cliente cliente) =>
+        $"¿Está seguro que desea eliminar al cliente '{cliente.NombreRazonSocial}' ({cliente.Identificacion})?";
 
     private async Task EliminarCliente(int id)
     {
-        var response = await Http.DeleteAsync($"http://localhost:5240/api/clientes/{id}");
-        if (response.IsSuccessStatusCode)
+        try
         {
-            clientes.RemoveAll(c => c.Id == id);
-            mostrarConfirmacion = false;
+            var resp = await Http.DeleteAsync($"http://localhost:5240/api/clientes/{id}");
+            if (resp.IsSuccessStatusCode)
+            {
+                clientes = clientes.Where(c => c.Id != id).ToList();
+                StateHasChanged();
+            }
+            else
+            {
+                mensajeError = "No se pudo eliminar el cliente.";
+            }
         }
-        else
+        catch (Exception ex)
         {
-            mensajeError = "Error al eliminar el cliente";
+            mensajeError = $"Error al eliminar cliente: {ex.Message}";
         }
     }
 
-    private string GetBadgeClass(string tipo) => tipo switch
+    private void CancelarEliminacion()
     {
-        "CEDULA" => "bg-primary",
-        "RUC" => "bg-success",
-        "PASAPORTE" => "bg-warning text-dark",
-        _ => "bg-secondary"
-    };
-
-    private string GetTipoIdLabel(string tipo) => tipo switch
-    {
-        "CEDULA" => "Cédula",
-        "RUC" => "RUC",
-        "PASAPORTE" => "Pasaporte",
-        _ => tipo
-    };
-
-    private string ObtenerMensajeEliminarCliente(Cliente cliente)
-        => $"¿Desea eliminar permanentemente el cliente '{cliente.NombreRazonSocial}'?";
+        mostrarConfirmacion = false;
+        mensajeConfirmacion = "";
+        accionConfirmar = null;
+    }
 }

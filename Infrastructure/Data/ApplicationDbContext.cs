@@ -54,12 +54,12 @@ namespace Infrastructure.Data
                 entity.Property(p => p.Descripcion)
                       .HasMaxLength(500);
 
-                // shadow properties to avoid immediate domain class changes
-                entity.Property<decimal>("PrecioVenta").HasPrecision(18, 2).HasDefaultValue(0m);
-                entity.Property<bool>("AplicaIva").HasDefaultValue(false);
+                entity.Property(p => p.PrecioVenta).HasPrecision(18, 2).HasDefaultValue(0m);
+                entity.Property(p => p.AplicaIva).HasDefaultValue(false); // <-- Booleano
+                entity.Property(p => p.Stock).HasDefaultValue(0);         // <-- Nuevo campo
+
                 entity.Property<bool>("IsDeleted").HasDefaultValue(false);
 
-                // Query filter to exclude soft-deleted productos
                 entity.HasQueryFilter(p => !EF.Property<bool>(p, "IsDeleted"));
 
                 entity.HasMany(p => p.Lotes)
@@ -87,7 +87,7 @@ namespace Infrastructure.Data
                 entity.Property(c => c.Direccion)
                       .HasMaxLength(300);
 
-                entity.Property(c => c.Correo)
+                entity.Property(c => c.Email)
                       .HasMaxLength(150);
 
                 // shadow property for soft delete
@@ -155,8 +155,9 @@ namespace Infrastructure.Data
                         entity.HasKey(d => d.Id);
                         entity.Property(d => d.Cantidad).IsRequired();
                         entity.Property(d => d.PrecioUnitario).HasPrecision(18, 2);
-                        entity.Property(d => d.Iva).HasPrecision(18, 2);
+                        entity.Property(d => d.IvaLinea).HasPrecision(18, 2);
                         entity.Property(d => d.Total).HasPrecision(18, 2);
+                        entity.Property(d => d.Descuento).HasPrecision(18, 2); // Mejor que HasColumnType
                   });
         }
 
@@ -166,24 +167,24 @@ namespace Infrastructure.Data
 
             // Clientes (añadir IsDeleted shadow via anonymous object if necesario)
             modelBuilder.Entity<Cliente>().HasData(
-                new { Id = 1, TipoIdentificacion = "CEDULA", Identificacion = "1234567890", NombreRazonSocial = "Juan Pérez García", Telefono = "0999999999", Direccion = "Av. Principal 123 y Secundaria, Quito", Correo = "juan.perez@email.com", IsDeleted = false },
-                new { Id = 2, TipoIdentificacion = "RUC", Identificacion = "1234567890001", NombreRazonSocial = "DISTRIBUIDORA MARTINEZ CIA. LTDA.", Telefono = "0988888888", Direccion = "Calle Comercio 456, Edificio Blue, Guayaquil", Correo = "ventas@distrimartinez.com", IsDeleted = false },
-                new { Id = 3, TipoIdentificacion = "PASAPORTE", Identificacion = "USA123456", NombreRazonSocial = "John Smith", Telefono = "0977777777", Direccion = "Hotel Hilton, Habitación 305, Quito", Correo = "john.smith@email.com", IsDeleted = false },
-                new { Id = 4, TipoIdentificacion = "CEDULA", Identificacion = "0987654321", NombreRazonSocial = "María Fernanda López Torres", Telefono = "0966666666", Direccion = "Urbanización Los Pinos, Mz 5 Villa 10, Cuenca", Correo = "maria.lopez@email.com", IsDeleted = false }
+                new { Id = 1, TipoIdentificacion = "CEDULA", Identificacion = "1234567890", NombreRazonSocial = "Juan Pérez García", Telefono = "0999999999", Direccion = "Av. Principal 123 y Secundaria, Quito", Email = "juan.perez@email.com", IsDeleted = false },
+                new { Id = 2, TipoIdentificacion = "RUC", Identificacion = "1234567890001", NombreRazonSocial = "DISTRIBUIDORA MARTINEZ CIA. LTDA.", Telefono = "0988888888", Direccion = "Calle Comercio 456, Edificio Blue, Guayaquil", Email = "ventas@distrimartinez.com", IsDeleted = false },
+                new { Id = 3, TipoIdentificacion = "PASAPORTE", Identificacion = "USA123456", NombreRazonSocial = "John Smith", Telefono = "0977777777", Direccion = "Hotel Hilton, Habitación 305, Quito", Email = "john.smith@email.com", IsDeleted = false },
+                new { Id = 4, TipoIdentificacion = "CEDULA", Identificacion = "0987654321", NombreRazonSocial = "María Fernanda López Torres", Telefono = "0966666666", Direccion = "Urbanización Los Pinos, Mz 5 Villa 10, Cuenca", Email = "maria.lopez@email.com", IsDeleted = false }
             );
 
             // Productos con PrecioVenta y AplicaIva shadow properties
             modelBuilder.Entity<Producto>().HasData(
-                new { Id = 1, Codigo = "PROD-001", Nombre = "Laptop HP Pavilion 15", Descripcion = "Intel Core i5, 8GB RAM, 256GB SSD", PrecioVenta = 1100.00m, AplicaIva = true, IsDeleted = false },
-                new { Id = 2, Codigo = "PROD-002", Nombre = "Mouse Logitech M185", Descripcion = "Inalámbrico, USB, Gris", PrecioVenta = 25.00m, AplicaIva = true, IsDeleted = false },
-                new { Id = 3, Codigo = "PROD-003", Nombre = "Teclado Genius KB-110", Descripcion = "USB, Negro, Español", PrecioVenta = 30.00m, AplicaIva = true, IsDeleted = false },
-                new { Id = 4, Codigo = "PROD-004", Nombre = "Monitor Samsung 24 pulgadas", Descripcion = "Full HD, HDMI, VGA", PrecioVentas = 220.00m, AplicaIva = true, IsDeleted = false },
-                new { Id = 5, Codigo = "PROD-005", Nombre = "Impresora HP DeskJet 2775", Descripcion = "Multifunción, WiFi, Color", PrecioVenta = 140.00m, AplicaIva = true, IsDeleted = false },
-                new { Id = 6, Codigo = "PROD-006", Nombre = "Disco Duro Externo 1TB", Descripcion = "USB 3.0, Portátil, Negro", PrecioVenta = 80.00m, AplicaIva = true, IsDeleted = false },
-                new { Id = 7, Codigo = "PROD-007", Nombre = "Memoria USB 32GB Kingston", Descripcion = "USB 3.0, Alta velocidad", PrecioVenta = 12.00m, AplicaIva = true, IsDeleted = false },
-                new { Id = 8, Codigo = "PROD-008", Nombre = "Webcam Logitech C270", Descripcion = "720p, USB, Micrófono integrado", PrecioVenta = 45.00m, AplicaIva = true, IsDeleted = false },
-                new { Id = 9, Codigo = "PROD-009", Nombre = "Cable HDMI 2m", Descripcion = "1080p, Compatible 4K", PrecioVenta = 10.00m, AplicaIva = false, IsDeleted = false },
-                new { Id = 10, Codigo = "PROD-010", Nombre = "Hub USB 4 puertos", Descripcion = "USB 3.0, Alimentación externa", PrecioVenta = 28.00m, AplicaIva = false, IsDeleted = false }
+                new { Id = 1, Codigo = "PROD-001", Nombre = "Laptop HP Pavilion 15", Descripcion = "Intel Core i5, 8GB RAM, 256GB SSD", PrecioVenta = 1100.00m, AplicaIva = true, Stock = 10, IsDeleted = false },
+                new { Id = 2, Codigo = "PROD-002", Nombre = "Mouse Logitech M185", Descripcion = "Inalámbrico, USB, Gris", PrecioVenta = 25.00m, AplicaIva = true, Stock = 50, IsDeleted = false },
+                new { Id = 3, Codigo = "PROD-003", Nombre = "Teclado Genius KB-110", Descripcion = "USB, Negro, Español", PrecioVenta = 30.00m, AplicaIva = true, Stock = 40, IsDeleted = false },
+                new { Id = 4, Codigo = "PROD-004", Nombre = "Monitor Samsung 24 pulgadas", Descripcion = "Full HD, HDMI, VGA", PrecioVenta = 220.00m, AplicaIva = true, Stock = 15, IsDeleted = false },
+                new { Id = 5, Codigo = "PROD-005", Nombre = "Impresora HP DeskJet 2775", Descripcion = "Multifunción, WiFi, Color", PrecioVenta = 140.00m, AplicaIva = true, Stock = 8, IsDeleted = false },
+                new { Id = 6, Codigo = "PROD-006", Nombre = "Disco Duro Externo 1TB", Descripcion = "USB 3.0, Portátil, Negro", PrecioVenta = 80.00m, AplicaIva = true, Stock = 20, IsDeleted = false },
+                new { Id = 7, Codigo = "PROD-007", Nombre = "Memoria USB 32GB Kingston", Descripcion = "USB 3.0, Alta velocidad", PrecioVenta = 12.00m, AplicaIva = true, Stock = 100, IsDeleted = false },
+                new { Id = 8, Codigo = "PROD-008", Nombre = "Webcam Logitech C270", Descripcion = "720p, USB, Micrófono integrado", PrecioVenta = 45.00m, AplicaIva = true, Stock = 15, IsDeleted = false },
+                new { Id = 9, Codigo = "PROD-009", Nombre = "Cable HDMI 2m", Descripcion = "1080p, Compatible 4K", PrecioVenta = 10.00m, AplicaIva = false, Stock = 60, IsDeleted = false },
+                new { Id = 10, Codigo = "PROD-010", Nombre = "Hub USB 4 puertos", Descripcion = "USB 3.0, Alimentación externa", PrecioVenta = 28.00m, AplicaIva = false, Stock = 12, IsDeleted = false }
             );
 
             // Lotes

@@ -8,9 +8,9 @@
         <div class="card-body">
             <EditForm Model="model" OnValidSubmit="HandleValidSubmit">
                 <DataAnnotationsValidator />
-                <div class="row g-3">
+                <div class="row g-1">
                     <div class="col-md-5">
-                        <label class="form-label">Nº Lote / Factura <span class="text-danger">*</span></label>
+                        <label class="form-label">NÂ° Lote / Factura <span class="text-danger">*</span></label>
                         <InputText @bind-Value="model.NumeroLote" class="form-control" />
                         <ValidationMessage For="@(() => model.NumeroLote)" class="text-danger small" />
                     </div>
@@ -52,7 +52,7 @@
     </div>
 }
 
-@* Modal de confirmación cuando el costo del lote >= precio de venta *@
+@* Modal de confirmaciï¿½n cuando el costo del lote >= precio de venta *@
 @if (showConfirmModal)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
@@ -67,7 +67,7 @@
                         El precio de costo del lote <strong>@($"${pendingModel?.PrecioUnitario:N2}")</strong>
                         es mayor o igual que el precio de venta del producto <strong>@($"${ProductPrecioVenta:N2}")</strong>.
                     </p>
-                    <p>¿Deseas continuar y guardar este lote con costo mayor o volver para modificarlo?</p>
+                    <p>ï¿½Deseas continuar y guardar este lote con costo mayor o volver para modificarlo?</p>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" @onclick="CancelConfirm">Cancelar</button>
@@ -122,7 +122,7 @@
 
     private async Task HandleValidSubmit()
     {
-        // Mostrar confirmación si el precio unitario es mayor o igual al precio de venta
+        // Mostrar confirmaciï¿½n si el precio unitario es mayor o igual al precio de venta
         if (model.PrecioUnitario >= ProductPrecioVenta)
         {
             pendingModel = new LoteModel
@@ -141,7 +141,7 @@
         await DoSave(model);
     }
 
-    // Confirmación: aceptar guardar lote con costo alto
+    // Confirmaciï¿½n: aceptar guardar lote con costo alto
     private async Task ConfirmSave()
     {
         if (pendingModel is not null)
@@ -185,7 +185,7 @@
 
     private class LoteModel
     {
-        [Required(ErrorMessage = "El número de lote es requerido")]
+        [Required(ErrorMessage = "El nï¿½mero de lote es requerido")]
         public string NumeroLote { get; set; } = "";
 
         [Range(1, int.MaxValue, ErrorMessage = "La cantidad debe ser mayor o igual a 1")]

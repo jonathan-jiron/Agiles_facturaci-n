@@ -16,13 +16,16 @@ public class Cliente
     public string Identificacion { get; set; } = string.Empty;
 
     [EmailAddress, MaxLength(150)]
-    public string? Correo { get; set; }
+    public string? Email { get; set; } // Renombrado
 
     [MaxLength(30)]
     public string? Telefono { get; set; }
 
     [MaxLength(250)]
     public string? Direccion { get; set; }
+
+    [MaxLength(20)]
+    public string? TipoCliente { get; set; } // Nuevo campo
 
     // Soft delete
     public bool IsDeleted { get; set; } = false;

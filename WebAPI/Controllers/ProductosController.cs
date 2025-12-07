@@ -27,6 +27,7 @@ namespace WebAPI.Controllers
                     Descripcion = p.Descripcion,
                     PrecioVenta = p.PrecioVenta,
                     AplicaIva = p.AplicaIva,
+                    Stock = p.Lotes.Sum(l => l.Cantidad), // <-- Cambia esto
                     Lotes = p.Lotes.Select(l => new LoteDto
                     {
                         Id = l.Id,
@@ -234,6 +235,24 @@ namespace WebAPI.Controllers
 
             return Ok(new { added, skipped });
         }
+
+        [HttpGet("buscar")]
+        public async Task<ActionResult<List<ProductoDto>>> Buscar(string query)
+        {
+            var productos = await _db.Productos
+                .Where(p => p.Nombre.Contains(query) || p.Codigo.Contains(query))
+                .Select(p => new ProductoDto
+                {
+                    Id = p.Id,
+                    Nombre = p.Nombre,
+                    PrecioVenta = p.PrecioVenta,
+                    Stock = p.Lotes.Sum(l => l.Cantidad),
+                    AplicaIva = p.AplicaIva
+                })
+                .ToListAsync();
+
+            return Ok(productos);
+        }
     }
 
     public class ProductoDto
@@ -244,10 +263,9 @@ namespace WebAPI.Controllers
         public string? Descripcion { get; set; }
         public decimal PrecioVenta { get; set; }
         public bool AplicaIva { get; set; }
+        public int Stock { get; set; }           // <-- Nuevo campo
+        public bool TieneIva => AplicaIva;       // <-- Para facilitar el frontend
         public List<LoteDto> Lotes { get; set; } = new();
-        
-        // Stock total calculado sumando cantidades de todos los lotes
-        public int Stock => Lotes?.Sum(l => l.Cantidad) ?? 0;
     }
     public class LoteDto
     {

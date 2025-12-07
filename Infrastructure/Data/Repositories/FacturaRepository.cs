@@ -42,7 +42,38 @@ public class FacturaRepository : IFacturaRepository
     {
         return await _db.Facturas
             .Include(f => f.Detalles)
+            .Include(f => f.Cliente)
             .OrderByDescending(f => f.Fecha)
             .ToListAsync();
+    }
+
+    public async Task<int> ContarAsync()
+    {
+        return await _db.Facturas.CountAsync();
+    }
+
+    public async Task<int> ContarPorMesAsync(int mes, int año)
+    {
+        return await _db.Facturas
+            .Where(f => f.Fecha.Month == mes && f.Fecha.Year == año)
+            .CountAsync();
+    }
+
+    public async Task<decimal> SumarVentasPorMesAsync(int mes, int año)
+    {
+        return await _db.Facturas
+            .Where(f => f.Fecha.Month == mes && f.Fecha.Year == año)
+            .SumAsync(f => f.Total);
+    }
+
+    public async Task<int> ContarPorFechaAsync(DateTime fecha)
+    {
+        return await _db.Facturas.CountAsync(f => f.Fecha.Date == fecha.Date);
+    }
+
+    public async Task ActualizarAsync(Factura factura)
+    {
+        _db.Facturas.Update(factura);
+        await _db.SaveChangesAsync();
     }
 }

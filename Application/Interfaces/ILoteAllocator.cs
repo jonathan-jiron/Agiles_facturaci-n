@@ -1,3 +1,4 @@
+using Domain.Entities;
 namespace Application.Interfaces;
 
 /// <summary>
@@ -5,11 +6,8 @@ namespace Application.Interfaces;
 /// </summary>
 public interface ILoteAllocator
 {
-    /// <summary>
-    /// Asigna lotes por FIFO para un producto y cantidad. Decrementa el stock de los lotes.
-    /// Retorna lista de (loteId, cantidadConsumida) para registrar en DetalleFactura.
-    /// Lanza excepción si no hay suficiente stock.
-    /// </summary>
+    Task<List<Lote>> ObtenerLotesDisponiblesAsync(int productoId);
+    Task DescontarStockAsync(int loteId, int cantidad);
     Task<List<LoteAllocation>> AllocateAsync(int productoId, int cantidadRequerida);
 }
 

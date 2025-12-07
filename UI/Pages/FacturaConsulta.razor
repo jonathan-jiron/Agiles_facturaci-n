@@ -1,0 +1,165 @@
+@page "/facturas/consulta/{Id:int}"
+@attribute [Authorize]
+@inject FacturaService FacturaService
+@inject NavigationManager Navigation
+
+<PageTitle>Consultar Documento Electrónico</PageTitle>
+
+<div class="content-area">
+    <h2 class="fw-bold text-primary mb-4">
+        <i class="fas fa-file-invoice me-2"></i>
+        Consulta de Factura Electrónica
+    </h2>
+    <p class="text-muted mb-4">Detalle y resumen del documento firmado</p>
+
+    @if (cargando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-3">Cargando factura...</p>
+        </div>
+    }
+    else if (factura == null)
+    {
+        <div class="alert alert-danger mt-4">
+            <i class="fas fa-exclamation-triangle me-2"></i>No se encontró la factura.
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-success mb-3">
+            <i class="fas fa-check-circle me-2"></i>Documento firmado satisfactoriamente.
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white fw-bold">
+                Datos Generales
+            </div>
+            <div class="card-body">
+                <div class="row mb-2">
+                    <div class="col-md-3"><strong>Fecha de Emisión:</strong></div>
+                    <div class="col-md-3">@factura.Fecha.ToString("dd/MM/yyyy")</div>
+                    <div class="col-md-3"><strong>Tipo de Documento:</strong></div>
+                    <div class="col-md-3">Cliente - Factura</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-3"><strong># de Documento:</strong></div>
+                    <div class="col-md-3">@factura.Numero</div>
+                    <div class="col-md-3"><strong>Persona:</strong></div>
+                    <div class="col-md-3">@factura.ClienteNombre</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-3"><strong>Vencimiento:</strong></div>
+                    <div class="col-md-3">0 días</div>
+                    <div class="col-md-3"><strong>Código de sustentente:</strong></div>
+                    <div class="col-md-3">Cod. 01</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-3"><strong>Estado:</strong></div>
+                    <div class="col-md-3 text-success fw-bold">Firmado</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light fw-bold">
+                Detalle de Productos/Servicios
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle" style="width: 100%;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Cant</th>
+                                <th>Unidad</th>
+                                <th>Precio U.</th>
+                                <th>Ret. IR</th>
+                                <th>Ret. IVA</th>
+                                <th>% Desc</th>
+                                <th>Desc</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var d in factura.Detalles)
+                            {
+                                <tr>
+                                    <td>@d.Cantidad</td>
+                                    <td>@d.ProductoNombre</td>
+                                    <td class="text-end">$@d.PrecioUnitario.ToString("N2")</td>
+                                    <td class="text-end">0.00%</td>
+                                    <td class="text-end">0.00%</td>
+                                    <td class="text-end">@d.DescuentoPorcentaje.ToString("N2")%</td>
+                                    <td class="text-end">$@d.Descuento.ToString("N2")</td>
+                                    <td class="text-end">$@d.Subtotal.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light fw-bold">
+                Resumen
+            </div>
+            <div class="card-body">
+                <div class="row mb-2">
+                    <div class="col-md-6 text-end">Subtotal 12%:</div>
+                    <div class="col-md-6">$@factura.Subtotal12.ToString("N2")</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-6 text-end">Subtotal 0%:</div>
+                    <div class="col-md-6">$@factura.Subtotal0.ToString("N2")</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-6 text-end">Descuento:</div>
+                    <div class="col-md-6">$@factura.DescuentoTotal.ToString("N2")</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-6 text-end">IVA:</div>
+                    <div class="col-md-6">$@factura.Iva.ToString("N2")</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-6 text-end">ICE:</div>
+                    <div class="col-md-6">$@factura.IceTotal.ToString("N2")</div>
+                </div>
+                <div class="row mb-2 fw-bold">
+                    <div class="col-md-6 text-end">Total:</div>
+                    <div class="col-md-6 text-success">$@factura.Total.ToString("N2")</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2 mb-4">
+            <button class="btn btn-secondary" @onclick="Volver">
+                <i class="fas fa-arrow-left me-2"></i>Volver
+            </button>
+            <button class="btn btn-outline-primary" disabled="@(!factura.Firmada)">
+                <i class="fas fa-file-pdf me-2"></i>Descargar PDF
+            </button>
+            <button class="btn btn-outline-info" disabled="@(!factura.Firmada)">
+                <i class="fas fa-file-code me-2"></i>Descargar XML
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private FacturaConsultaDto? factura;
+    private bool cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        cargando = true;
+        factura = await FacturaService.ConsultarFacturaAsync(Id);
+        cargando = false;
+    }
+
+    private void Volver()
+    {
+        Navigation.NavigateTo("/facturas");
+    }
+}

@@ -91,7 +91,7 @@ public class ClientesController : ControllerBase
         clienteExistente.NombreRazonSocial = cliente.NombreRazonSocial;
         clienteExistente.Telefono = cliente.Telefono;
         clienteExistente.Direccion = cliente.Direccion;
-        clienteExistente.Correo = cliente.Correo;
+        clienteExistente.Email = cliente.Email;
 
         await _context.SaveChangesAsync();
 

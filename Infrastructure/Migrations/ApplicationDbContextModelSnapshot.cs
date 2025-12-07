@@ -30,13 +30,13 @@ namespace Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Correo")
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
                     b.Property<string>("Direccion")
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
 
                     b.Property<string>("Identificacion")
                         .IsRequired()
@@ -62,6 +62,10 @@ namespace Infrastructure.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<string>("TipoCliente")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("TipoIdentificacion")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -78,8 +82,8 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = 1,
-                            Correo = "juan.perez@email.com",
                             Direccion = "Av. Principal 123 y Secundaria, Quito",
+                            Email = "juan.perez@email.com",
                             Identificacion = "1234567890",
                             IsDeleted = false,
                             NombreRazonSocial = "Juan Pérez García",
@@ -89,8 +93,8 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = 2,
-                            Correo = "ventas@distrimartinez.com",
                             Direccion = "Calle Comercio 456, Edificio Blue, Guayaquil",
+                            Email = "ventas@distrimartinez.com",
                             Identificacion = "1234567890001",
                             IsDeleted = false,
                             NombreRazonSocial = "DISTRIBUIDORA MARTINEZ CIA. LTDA.",
@@ -100,8 +104,8 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = 3,
-                            Correo = "john.smith@email.com",
                             Direccion = "Hotel Hilton, Habitación 305, Quito",
+                            Email = "john.smith@email.com",
                             Identificacion = "USA123456",
                             IsDeleted = false,
                             NombreRazonSocial = "John Smith",
@@ -111,8 +115,8 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = 4,
-                            Correo = "maria.lopez@email.com",
                             Direccion = "Urbanización Los Pinos, Mz 5 Villa 10, Cuenca",
+                            Email = "maria.lopez@email.com",
                             Identificacion = "0987654321",
                             IsDeleted = false,
                             NombreRazonSocial = "María Fernanda López Torres",
@@ -132,10 +136,14 @@ namespace Infrastructure.Migrations
                     b.Property<int>("Cantidad")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("Descuento")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int>("FacturaId")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("Iva")
+                    b.Property<decimal>("IvaLinea")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
@@ -207,12 +215,21 @@ namespace Infrastructure.Migrations
                     b.Property<int>("ClienteId")
                         .HasColumnType("int");
 
-                    b.Property<string>("Estado")
+                    b.Property<string>("Establecimiento")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<int>("Estado")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("Fecha")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("FormaPago")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<decimal>("Iva")
                         .HasPrecision(18, 2)
@@ -222,6 +239,16 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Observaciones")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("PuntoEmision")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
 
                     b.Property<decimal>("Subtotal")
                         .HasPrecision(18, 2)
@@ -449,6 +476,11 @@ namespace Infrastructure.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
 
+                    b.Property<int>("Stock")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.HasKey("Id");
 
                     b.ToTable("Productos");
@@ -462,7 +494,8 @@ namespace Infrastructure.Migrations
                             Descripcion = "Intel Core i5, 8GB RAM, 256GB SSD",
                             IsDeleted = false,
                             Nombre = "Laptop HP Pavilion 15",
-                            PrecioVenta = 1100.00m
+                            PrecioVenta = 1100.00m,
+                            Stock = 10
                         },
                         new
                         {
@@ -472,7 +505,8 @@ namespace Infrastructure.Migrations
                             Descripcion = "Inalámbrico, USB, Gris",
                             IsDeleted = false,
                             Nombre = "Mouse Logitech M185",
-                            PrecioVenta = 25.00m
+                            PrecioVenta = 25.00m,
+                            Stock = 50
                         },
                         new
                         {
@@ -482,7 +516,8 @@ namespace Infrastructure.Migrations
                             Descripcion = "USB, Negro, Español",
                             IsDeleted = false,
                             Nombre = "Teclado Genius KB-110",
-                            PrecioVenta = 30.00m
+                            PrecioVenta = 30.00m,
+                            Stock = 40
                         },
                         new
                         {
@@ -491,7 +526,9 @@ namespace Infrastructure.Migrations
                             Codigo = "PROD-004",
                             Descripcion = "Full HD, HDMI, VGA",
                             IsDeleted = false,
-                            Nombre = "Monitor Samsung 24 pulgadas"
+                            Nombre = "Monitor Samsung 24 pulgadas",
+                            PrecioVenta = 220.00m,
+                            Stock = 15
                         },
                         new
                         {
@@ -501,7 +538,8 @@ namespace Infrastructure.Migrations
                             Descripcion = "Multifunción, WiFi, Color",
                             IsDeleted = false,
                             Nombre = "Impresora HP DeskJet 2775",
-                            PrecioVenta = 140.00m
+                            PrecioVenta = 140.00m,
+                            Stock = 8
                         },
                         new
                         {
@@ -511,7 +549,8 @@ namespace Infrastructure.Migrations
                             Descripcion = "USB 3.0, Portátil, Negro",
                             IsDeleted = false,
                             Nombre = "Disco Duro Externo 1TB",
-                            PrecioVenta = 80.00m
+                            PrecioVenta = 80.00m,
+                            Stock = 20
                         },
                         new
                         {
@@ -521,7 +560,8 @@ namespace Infrastructure.Migrations
                             Descripcion = "USB 3.0, Alta velocidad",
                             IsDeleted = false,
                             Nombre = "Memoria USB 32GB Kingston",
-                            PrecioVenta = 12.00m
+                            PrecioVenta = 12.00m,
+                            Stock = 100
                         },
                         new
                         {
@@ -531,7 +571,8 @@ namespace Infrastructure.Migrations
                             Descripcion = "720p, USB, Micrófono integrado",
                             IsDeleted = false,
                             Nombre = "Webcam Logitech C270",
-                            PrecioVenta = 45.00m
+                            PrecioVenta = 45.00m,
+                            Stock = 15
                         },
                         new
                         {
@@ -541,7 +582,8 @@ namespace Infrastructure.Migrations
                             Descripcion = "1080p, Compatible 4K",
                             IsDeleted = false,
                             Nombre = "Cable HDMI 2m",
-                            PrecioVenta = 10.00m
+                            PrecioVenta = 10.00m,
+                            Stock = 60
                         },
                         new
                         {
@@ -551,7 +593,8 @@ namespace Infrastructure.Migrations
                             Descripcion = "USB 3.0, Alimentación externa",
                             IsDeleted = false,
                             Nombre = "Hub USB 4 puertos",
-                            PrecioVenta = 28.00m
+                            PrecioVenta = 28.00m,
+                            Stock = 12
                         });
                 });
 

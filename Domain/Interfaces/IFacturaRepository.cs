@@ -11,4 +11,9 @@ public interface IFacturaRepository
     Task<Factura?> ObtenerPorNumeroAsync(string numero);
     Task<List<Factura>> ListarPorClienteAsync(int clienteId);
     Task<List<Factura>> ListarAsync();
+    Task<int> ContarAsync();
+    Task<int> ContarPorMesAsync(int mes, int año);
+    Task<decimal> SumarVentasPorMesAsync(int mes, int año);
+    Task<int> ContarPorFechaAsync(DateTime fecha);
+    Task ActualizarAsync(Factura factura);
 }

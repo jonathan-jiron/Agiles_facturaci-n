@@ -6,207 +6,245 @@
 @using System.ComponentModel.DataAnnotations
 @using Domain.Entities
 
-<h3 class="mb-4"><i class="fa-solid fa-boxes-stacked me-2"></i>Gestión de Productos e Inventario</h3>
+<PageTitle>Gestión de Productos e Inventario</PageTitle>
 
-<div class="card shadow-sm border-0 mb-4">
-    <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div class="d-flex gap-2">
-                <button class="btn btn-primary" @onclick="MostrarFormularioNuevo">
-                    <i class="fa-solid fa-plus-circle"></i> Nuevo Producto
-                </button>
+<div class="content-area">
+    <h2 class="fw-bold text-primary mb-4">
+        <i class="fa-solid fa-boxes-stacked me-2"></i>Gestión de Productos e Inventario
+    </h2>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" @onclick="MostrarFormularioNuevo">
+                        <i class="fa-solid fa-plus-circle"></i> Nuevo Producto
+                    </button>
+                </div>
+
+                <!-- Búsqueda dinámica -->
+                <div class="d-flex gap-2 align-items-center">
+                    <select class="form-select form-select-sm" style="width:180px" @bind="prodSearchField">
+                        <option value="All">Buscar en: Todo</option>
+                        <option value="Codigo">Código</option>
+                        <option value="Nombre">Nombre</option>
+                        <option value="Descripcion">Descripción</option>
+                        <option value="Lote">Nº Lote</option>
+                    </select>
+                    <input class="form-control form-control-sm" style="width:320px"
+                           placeholder="Buscar productos..."
+                           @bind="prodSearchTerm" @bind:event="oninput" />
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="ClearProdFilter" title="Limpiar búsqueda">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
             </div>
 
-            <!-- Búsqueda dinámica -->
-            <div class="d-flex gap-2 align-items-center">
-                <select class="form-select form-select-sm" style="width:180px" @bind="prodSearchField">
-                    <option value="All">Buscar en: Todo</option>
-                    <option value="Codigo">Código</option>
-                    <option value="Nombre">Nombre</option>
-                    <option value="Descripcion">Descripción</option>
-                    <option value="Lote">Nº Lote</option>
-                </select>
-                <input class="form-control form-control-sm" style="width:320px"
-                       placeholder="Buscar productos..."
-                       @bind="prodSearchTerm" @bind:event="oninput" />
-                <button class="btn btn-sm btn-outline-secondary" @onclick="ClearProdFilter" title="Limpiar búsqueda">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-        </div>
+            @if (!string.IsNullOrEmpty(mensajeError))
+            {
+                <div class="alert alert-danger">@mensajeError</div>
+            }
 
-        @if (!string.IsNullOrEmpty(mensajeError))
-        {
-            <div class="alert alert-danger">@mensajeError</div>
-        }
-
-        @if (productos == null)
-        {
-            <div class="text-center py-5">
-                <div class="spinner-border text-primary"></div>
-                <p class="mt-2">Cargando inventario...</p>
-            </div>
-        }
-        else if (!GetFilteredProductos().Any())
-        {
-            <div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> No hay productos que coincidan con la búsqueda.</div>
-        }
-        else
-        {
-            <div class="table-responsive">
-                <table class="table table-hover table-striped align-middle">
-                    <thead class="table-success">
-                        <tr>
-                            <th>Código</th>
-                            <th>Nombre</th>
-                            <th>Descripción</th>
-                            <th class="text-end">Precio Venta</th>
-                            <th class="text-center">IVA</th>
-                            <th class="text-center">Lotes</th>
-                            <th class="text-center">Stock Total</th>
-                            <th class="text-end">Valor Inventario</th>
-                            <th class="text-center">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var p in GetFilteredProductos())
-                        {
-                            var stockTotal = p.Lotes?.Sum(l => l.Cantidad) ?? 0;
-                            var valorTotal = p.Lotes?.Sum(l => l.Cantidad * l.PrecioUnitario) ?? 0m;
-                            <tr>
-                                <td><span class="badge bg-dark">@p.Codigo</span></td>
-                                <td><strong>@p.Nombre</strong></td>
-                                <td>@p.Descripcion</td>
-                                <td class="text-end">@($"${p.PrecioVenta:N2}")</td>
-                                <td class="text-center">
-                                    @if (p.AplicaIva)
-                                    {
-                                        <span class="badge bg-success">SI</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge bg-secondary">NO</span>
-                                    }
-                                </td>
-                                <td class="text-center">
-                                    <button class="btn btn-sm btn-outline-info" @onclick="() => MostrarLotes(p)">
-                                        <i class="fa-solid fa-eye"></i> @(p.Lotes?.Count ?? 0)
-                                    </button>
-                                </td>
-                                <td class="text-center">
-                                    <span class="badge @(stockTotal > 0 ? "bg-success" : "bg-danger") fs-6">
-                                        @stockTotal
-                                    </span>
-                                </td>
-                                <td class="text-end"><strong class="text-success">@($"${valorTotal:N2}")</strong></td>
-                                <td class="text-center">
-                                    <div class="btn-group btn-group-sm flex-nowrap" role="group" aria-label="Acciones">
-                                        <button class="btn btn-warning" title="Editar" @onclick="() => EditarProducto(p)">
-                                            <i class="fa-solid fa-pen-to-square"></i>
-                                        </button>
-                                        <button class="btn btn-danger" title="Eliminar" @onclick="() => SolicitarConfirmacion(
-                                                ObtenerMensajeEliminarProducto(p),
-                                                () => EliminarProducto(p.Id)
-                                            )">
-                                            <i class="fa-solid fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
+            @if (productos == null)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="mt-2">Cargando inventario...</p>
+                </div>
+            }
+            else if (!GetFilteredProductos().Any())
+            {
+                <div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> No hay productos que coincidan con la búsqueda.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped align-middle" style="width: 100%;">
+                        <thead>
+                            <tr class="table-info">
+                                <th>Código</th>
+                                <th>Nombre</th>
+                                <th>Descripción</th>
+                                <th class="text-end">Precio Venta</th>
+                                <th class="text-center">IVA</th>
+                                <th class="text-center">Lotes</th>
+                                <th class="text-center">Stock Total</th>
+                                <th class="text-end">Valor Inventario</th>
+                                <th class="text-center">Acciones</th>
                             </tr>
-                        }
-                    </tbody>
-                    <tfoot class="table-primary">
-                        <tr class="fw-bold">
-                            <td colspan="6" class="text-end">TOTALES:</td>
-                            <td class="text-center">@GetFilteredProductos().Sum(p => p.Lotes?.Sum(l => l.Cantidad) ?? 0)</td>
-                            <td class="text-end text-success">@($"${GetFilteredProductos().Sum(p => p.Lotes?.Sum(l => l.Cantidad * l.PrecioUnitario) ?? 0):N2}")</td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        }
-    </div>
-</div>
-
-@if (mostrarModalLotes && productoSeleccionado is not null)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-info text-white">
-                    <h5 class="modal-title"><i class="fa-solid fa-layer-group me-2"></i>Historial de Lotes - @productoSeleccionado!.Nombre</h5>
-                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalLotes"></button>
-                </div>
-                <div class="modal-body">
-                    @if (productoSeleccionado!.Lotes?.Any() == true)
-                    {
-                        <table class="table table-striped table-bordered">
-                            <thead class="table-dark">
+                        </thead>
+                        <tbody>
+                            @foreach (var p in paginadosProductos)
+                            {
+                                var stockTotal = p.Lotes?.Sum(l => l.Cantidad) ?? 0;
+                                var valorTotal = p.Lotes?.Sum(l => l.Cantidad * l.PrecioUnitario) ?? 0m;
                                 <tr>
-                                    <th>Nº Lote / Factura</th>
-                                    <th class="text-end">Cantidad</th>
-                                    <th class="text-end">Precio Costo</th>
-                                    <th class="text-end">Valor Total</th>
+                                    <td><span class="badge bg-dark">@p.Codigo</span></td>
+                                    <td><strong>@p.Nombre</strong></td>
+                                    <td>@p.Descripcion</td>
+                                    <td class="text-end">@($"${p.PrecioVenta:N2}")</td>
+                                    <td class="text-center">
+                                        @if (p.AplicaIva)
+                                        {
+                                            <span class="badge bg-success">SI</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">NO</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-outline-info" @onclick="() => MostrarLotes(p)">
+                                            <i class="fa-solid fa-eye"></i> @(p.Lotes?.Count ?? 0)
+                                        </button>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge @(stockTotal > 0 ? "bg-success" : "bg-danger") fs-6">
+                                            @stockTotal
+                                        </span>
+                                    </td>
+                                    <td class="text-end"><strong class="text-success">@($"${valorTotal:N2}")</strong></td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm flex-nowrap" role="group" aria-label="Acciones">
+                                            <button class="btn btn-warning" title="Editar" @onclick="() => EditarProducto(p)">
+                                                <i class="fa-solid fa-pen-to-square"></i>
+                                            </button>
+                                            <button class="btn btn-danger" title="Eliminar" @onclick="() => SolicitarConfirmacion(
+                                                    ObtenerMensajeEliminarProducto(p),
+                                                    () => EliminarProducto(p.Id)
+                                                )">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var l in productoSeleccionado!.Lotes!)
-                                {
-                                    <tr>
-                                        <td><i class="fa-solid fa-file-invoice text-primary me-1"></i><strong>@l.NumeroLote</strong></td>
-                                        <td class="text-end">@l.Cantidad</td>
-                                        <td class="text-end">$@l.PrecioUnitario.ToString("N2")</td>
-                                        <td class="text-end"><strong>$@((l.Cantidad * l.PrecioUnitario).ToString("N2"))</strong></td>
-                                    </tr>
-                                }
-                            </tbody>
-                            <tfoot class="table-info">
-                                <tr class="fw-bold">
-                                    <td>TOTALES</td>
-                                    <td class="text-end">@productoSeleccionado!.Lotes!.Sum(l => l.Cantidad)</td>
-                                    <td class="text-end">-</td>
-                                    <td class="text-end text-success">$@productoSeleccionado!.Lotes!.Sum(l => l.Cantidad * l.PrecioUnitario).ToString("N2")</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    }
-                    else
-                    {
-                        <p class="text-muted mb-0">No hay lotes registrados para este producto.</p>
-                    }
+                            }
+                        </tbody>
+                        <tfoot class="table-primary">
+                            <tr class="fw-bold">
+                                <td colspan="6" class="text-end">TOTALES:</td>
+                                <td class="text-center">@GetFilteredProductos().Sum(p => p.Lotes?.Sum(l => l.Cantidad) ?? 0)</td>
+                                <td class="text-end text-success">@($"${GetFilteredProductos().Sum(p => p.Lotes?.Sum(l => l.Cantidad * l.PrecioUnitario) ?? 0):N2}")</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalLotes">Cerrar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
+            }
 
-@if (mostrarConfirmacion)
-{
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title"><i class="fa-solid fa-exclamation-triangle me-2"></i>Confirmar eliminación</h5>
+            @if (totalPaginas > 1)
+            {
+                <div class="d-flex flex-column flex-md-row align-items-center justify-content-between mt-3">
+                    <div class="mb-2 mb-md-0 text-muted small">
+                        Página <span class="fw-bold">@paginaActual</span> de <span class="fw-bold">@totalPaginas</span>
+                    </div>
+                    <nav aria-label="Paginación de productos">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item @(paginaActual == 1 ? "disabled" : "")">
+                                <button class="page-link" @onclick="() => CambiarPagina(paginaActual - 1)">
+                                    <i class="fas fa-angle-left"></i>
+                                </button>
+                            </li>
+                            @for (int i = 1; i <= totalPaginas; i++)
+                            {
+                                var pagina = i;
+                                <li class="page-item @(paginaActual == pagina ? "active" : "")">
+                                    <button class="page-link" @onclick="() => CambiarPagina(pagina)">
+                                        @pagina
+                                    </button>
+                                </li>
+                            }
+                            <li class="page-item @(paginaActual == totalPaginas ? "disabled" : "")">
+                                <button class="page-link" @onclick="() => CambiarPagina(paginaActual + 1)">
+                                    <i class="fas fa-angle-right"></i>
+                                </button>
+                            </li>
+                        </ul>
+                    </nav>
                 </div>
-                <div class="modal-body">
-                    <p>@mensajeConfirmacion</p>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-danger" @onclick="ConfirmarEliminacion">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-                    <button class="btn btn-secondary" @onclick="CancelarEliminacion">
-                        Cancelar
-                    </button>
+            }
+        </div>
+    </div>
+
+    @if (mostrarModalLotes && productoSeleccionado is not null)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title"><i class="fa-solid fa-layer-group me-2"></i>Historial de Lotes - @productoSeleccionado!.Nombre</h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalLotes"></button>
+                    </div>
+                    <div class="modal-body">
+                        @if (productoSeleccionado!.Lotes?.Any() == true)
+                        {
+                            <table class="table table-striped table-bordered">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Nº Lote / Factura</th>
+                                        <th class="text-end">Cantidad</th>
+                                        <th class="text-end">Precio Costo</th>
+                                        <th class="text-end">Valor Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var l in productoSeleccionado!.Lotes!)
+                                    {
+                                        <tr>
+                                            <td><i class="fa-solid fa-file-invoice text-primary me-1"></i><strong>@l.NumeroLote</strong></td>
+                                            <td class="text-end">@l.Cantidad</td>
+                                            <td class="text-end">$@l.PrecioUnitario.ToString("N2")</td>
+                                            <td class="text-end"><strong>$@((l.Cantidad * l.PrecioUnitario).ToString("N2"))</strong></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot class="table-info">
+                                    <tr class="fw-bold">
+                                        <td>TOTALES</td>
+                                        <td class="text-end">@productoSeleccionado!.Lotes!.Sum(l => l.Cantidad)</td>
+                                        <td class="text-end">-</td>
+                                        <td class="text-end text-success">$@productoSeleccionado!.Lotes!.Sum(l => l.Cantidad * l.PrecioUnitario).ToString("N2")</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        }
+                        else
+                        {
+                            <p class="text-muted mb-0">No hay lotes registrados para este producto.</p>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CerrarModalLotes">Cerrar</button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-}
+    }
+
+    @if (mostrarConfirmacion)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title"><i class="fa-solid fa-exclamation-triangle me-2"></i>Confirmar eliminación</h5>
+                    </div>
+                    <div class="modal-body">
+                        <p>@mensajeConfirmacion</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-danger" @onclick="ConfirmarEliminacion">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                        <button class="btn btn-secondary" @onclick="CancelarEliminacion">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
 
 @code {
     private List<Producto> productos = new();
@@ -220,6 +258,11 @@
     // búsqueda dinámica
     private string prodSearchTerm = "";
     private string prodSearchField = "All";
+
+    private int paginaActual = 1;
+    private int itemsPorPagina = 10;
+    private int totalPaginas => (int)Math.Ceiling((double)GetFilteredProductos().Count() / itemsPorPagina);
+    private IEnumerable<Producto> paginadosProductos => GetFilteredProductos().Skip((paginaActual - 1) * itemsPorPagina).Take(itemsPorPagina);
 
     protected override async Task OnInitializedAsync()
     {
@@ -332,6 +375,14 @@
         else
         {
             mensajeError = "Error al eliminar el producto";
+        }
+    }
+
+    private void CambiarPagina(int nuevaPagina)
+    {
+        if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas)
+        {
+            paginaActual = nuevaPagina;
         }
     }
 }

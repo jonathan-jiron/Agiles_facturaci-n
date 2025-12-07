@@ -11,8 +11,10 @@ namespace Domain.Entities
         public decimal PrecioVenta { get; set; }
         public bool AplicaIva { get; set; }
 
+        public int Stock { get; set; }
+
         // Relación con Lotes
-        public List<Lote> Lotes { get; set; } = new List<Lote>();
+        public List<Lote> Lotes { get; set; } = new();
 
         // Soft delete
         public bool IsDeleted { get; set; } = false;

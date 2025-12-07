@@ -20,7 +20,8 @@ public class DetalleFactura
     // Datos
     public int Cantidad { get; set; }
     public decimal PrecioUnitario { get; set; }
-    public decimal Iva { get; set; }
+    public decimal Descuento { get; set; } // <-- Agrega esto
+    public decimal IvaLinea { get; set; }  // <-- Agrega esto
     public decimal Total { get; set; }
 }
 

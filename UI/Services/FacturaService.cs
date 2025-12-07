@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using Application.DTOs;
 
 namespace UI.Services;
 
@@ -11,12 +12,50 @@ public class FacturaService
         _http = http;
     }
 
+    public async Task<List<FacturaListDto>> ListarFacturasAsync()
+    {
+        return await _http.GetFromJsonAsync<List<FacturaListDto>>("api/facturas") ?? new();
+    }
+
+    public async Task<FacturaDto?> ObtenerFacturaPorIdAsync(int id)
+    {
+        return await _http.GetFromJsonAsync<FacturaDto>($"api/facturas/{id}");
+    }
+
+    public async Task<FacturaDto?> CrearFacturaAsync(FacturaCreateDto dto)
+    {
+        var resp = await _http.PostAsJsonAsync("api/facturas", dto);
+        return await resp.Content.ReadFromJsonAsync<FacturaDto>();
+    }
+
+    public async Task<byte[]?> DescargarPDFAsync(int id)
+    {
+        return await _http.GetByteArrayAsync($"api/facturas/{id}/pdf");
+    }
+
+    public async Task<bool> EnviarFacturaPorEmailAsync(int id, string email)
+    {
+        var resp = await _http.PostAsync($"api/facturas/{id}/enviar-email?email={email}", null);
+        return resp.IsSuccessStatusCode;
+    }
+
+    public async Task<FacturaDto?> GuardarBorradorAsync(FacturaCreateDto dto)
+    {
+        var resp = await _http.PostAsJsonAsync("api/facturas/borrador", dto);
+        return await resp.Content.ReadFromJsonAsync<FacturaDto>();
+    }
+
+    // Métodos para el dashboard
     public async Task<int> GetTotalFacturasAsync()
+    {
+        return await _http.GetFromJsonAsync<int>("api/facturas/total");
+    }
+
+    public async Task<int> GetFacturasMesActualAsync()
     {
         try
         {
-            var facturas = await _http.GetFromJsonAsync<List<FacturaListDto>>("api/facturas");
-            return facturas?.Count ?? 0;
+            return await _http.GetFromJsonAsync<int>("api/facturas/mes-actual");
         }
         catch
         {
@@ -26,177 +65,22 @@ public class FacturaService
 
     public async Task<decimal> GetVentasMesActualAsync()
     {
-        try
-        {
-            var facturas = await _http.GetFromJsonAsync<List<FacturaListDto>>("api/facturas");
-            if (facturas == null) return 0;
-
-            var mesActual = DateTime.Now.Month;
-            var añoActual = DateTime.Now.Year;
-
-            return facturas
-                .Where(f => f.Fecha.Month == mesActual && f.Fecha.Year == añoActual)
-                .Sum(f => f.Total);
-        }
-        catch
-        {
-            return 0;
-        }
-    }
-
-    public async Task<int> GetFacturasMesActualAsync()
-    {
-        try
-        {
-            var facturas = await _http.GetFromJsonAsync<List<FacturaListDto>>("api/facturas");
-            if (facturas == null) return 0;
-
-            var mesActual = DateTime.Now.Month;
-            var añoActual = DateTime.Now.Year;
-
-            return facturas
-                .Where(f => f.Fecha.Month == mesActual && f.Fecha.Year == añoActual)
-                .Count();
-        }
-        catch
-        {
-            return 0;
-        }
+        return await _http.GetFromJsonAsync<decimal>("api/facturas/ventas-mes-actual");
     }
 
     public async Task<decimal> GetCrecimientoVentasAsync()
     {
-        try
-        {
-            var facturas = await _http.GetFromJsonAsync<List<FacturaListDto>>("api/facturas");
-            if (facturas == null || !facturas.Any()) return 0;
-
-            var mesActual = DateTime.Now.Month;
-            var añoActual = DateTime.Now.Year;
-            var mesAnterior = mesActual == 1 ? 12 : mesActual - 1;
-            var añoMesAnterior = mesActual == 1 ? añoActual - 1 : añoActual;
-
-            var ventasMesActual = facturas
-                .Where(f => f.Fecha.Month == mesActual && f.Fecha.Year == añoActual)
-                .Sum(f => f.Total);
-
-            var ventasMesAnterior = facturas
-                .Where(f => f.Fecha.Month == mesAnterior && f.Fecha.Year == añoMesAnterior)
-                .Sum(f => f.Total);
-
-            if (ventasMesAnterior == 0) return ventasMesActual > 0 ? 100 : 0;
-
-            return Math.Round(((ventasMesActual - ventasMesAnterior) / ventasMesAnterior) * 100, 1);
-        }
-        catch
-        {
-            return 0;
-        }
+        return await _http.GetFromJsonAsync<decimal>("api/facturas/crecimiento-ventas");
     }
 
-    public async Task<FacturaDto?> CrearFacturaAsync(FacturaCreateDto dto)
+    public async Task<FacturaConsultaDto?> ConsultarFacturaAsync(int id)
     {
-        try
-        {
-            var response = await _http.PostAsJsonAsync("api/facturas", dto);
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadFromJsonAsync<FacturaDto>();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error creando factura: {ex.Message}");
-            throw;
-        }
+        return await _http.GetFromJsonAsync<FacturaConsultaDto>($"api/facturas/{id}");
     }
 
-    public async Task<FacturaDto?> ObtenerFacturaPorIdAsync(int id)
+    public async Task<bool> FirmarFacturaAsync(int id)
     {
-        try
-        {
-            return await _http.GetFromJsonAsync<FacturaDto>($"api/facturas/{id}");
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    public async Task<List<FacturaListDto>> ListarFacturasAsync()
-    {
-        try
-        {
-            var facturas = await _http.GetFromJsonAsync<List<FacturaListDto>>("api/facturas");
-            return facturas ?? new List<FacturaListDto>();
-        }
-        catch
-        {
-            return new List<FacturaListDto>();
-        }
-    }
-
-    public async Task<bool> EnviarFacturaPorEmailAsync(int facturaId, string email)
-    {
-        try
-        {
-            // Placeholder - implementar cuando el backend tenga el endpoint
-            var response = await _http.PostAsJsonAsync($"api/facturas/{facturaId}/enviar-email", new { email });
-            return response.IsSuccessStatusCode;
-        }
-        catch
-        {
-            return false;
-        }
+        var resp = await _http.PostAsync($"api/facturas/{id}/firmar", null);
+        return resp.IsSuccessStatusCode;
     }
 }
-
-
-public class FacturaListDto
-{
-    public int Id { get; set; }
-    public string Numero { get; set; } = string.Empty;
-    public DateTime Fecha { get; set; }
-    public decimal Subtotal { get; set; }
-    public decimal Iva { get; set; }
-    public decimal Total { get; set; }
-    public string Estado { get; set; } = "Generada";
-    public string? ClienteNombre { get; set; }
-}
-
-public class FacturaCreateDto
-{
-    public int ClienteId { get; set; }
-    public List<DetalleFacturaCreateDto> Detalles { get; set; } = new();
-}
-
-public class DetalleFacturaCreateDto
-{
-    public int ProductoId { get; set; }
-    public int Cantidad { get; set; }
-}
-
-public class FacturaDto
-{
-    public int Id { get; set; }
-    public string Numero { get; set; } = string.Empty;
-    public DateTime Fecha { get; set; }
-    public int ClienteId { get; set; }
-    public string? ClienteNombre { get; set; }
-    public string? ClienteIdentificacion { get; set; }
-    public string? ClienteEmail { get; set; }
-    public decimal Subtotal { get; set; }
-    public decimal Iva { get; set; }
-    public decimal Total { get; set; }
-    public string Estado { get; set; } = "Generada";
-    public List<DetalleFacturaDto> Detalles { get; set; } = new();
-}
-
-public class DetalleFacturaDto
-{
-    public int ProductoId { get; set; }
-    public string? ProductoNombre { get; set; }
-    public int Cantidad { get; set; }
-    public decimal PrecioUnitario { get; set; }
-    public decimal Iva { get; set; }
-    public decimal Total { get; set; }
-}
-

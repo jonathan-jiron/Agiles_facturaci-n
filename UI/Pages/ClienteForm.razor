@@ -7,66 +7,126 @@
 @using Domain.Entities
 @using System.ComponentModel.DataAnnotations
 
-<h3 class="mb-4"><i class="fa-solid fa-id-card me-2"></i>@(IsEdit ? "Editar Cliente" : "Registrar Nuevo Cliente")</h3>
+<PageTitle>@(IsEdit ? "Editar Cliente" : "Registrar Nuevo Cliente")</PageTitle>
 
-<div class="card shadow-sm border-0 mb-4">
-    <div class="card-body">
-        <EditForm Model="@cliente" OnValidSubmit="Guardar">
-            <DataAnnotationsValidator />
+<div class="content-area">
+    <h2 class="fw-bold text-primary mb-4">
+        <i class="fa-solid fa-id-card me-2"></i>@(IsEdit ? "Editar Cliente" : "Registrar Nuevo Cliente")
+    </h2>
 
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label">Tipo de Identificación <span class="text-danger">*</span></label>
-                    <InputSelect @bind-Value="cliente.TipoIdentificacion" class="form-select">
-                        <option value="">Seleccione...</option>
-                        <option value="CEDULA">Cédula</option>
-                        <option value="RUC">RUC</option>
-                        <option value="PASAPORTE">Pasaporte</option>
-                    </InputSelect>
-                    <ValidationMessage For="@(() => cliente.TipoIdentificacion)" class="text-danger small" />
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <EditForm Model="@cliente" OnValidSubmit="Guardar">
+                <DataAnnotationsValidator />
+
+                @{
+                    var tipoIdentificacionClass = "form-select";
+                    var identificacionClass = "form-control";
+                    var nombreClass = "form-control";
+                    var direccionClass = "form-control";
+                    var telefonoClass = "form-control";
+                    var emailClass = "form-control";
+
+                    if (showValidation && !string.IsNullOrEmpty(mensajeTipoIdentificacion))
+                        tipoIdentificacionClass += " is-invalid";
+                    if (showValidation && !string.IsNullOrEmpty(mensajeIdentificacion))
+                        identificacionClass += " is-invalid";
+                    if (showValidation && !string.IsNullOrEmpty(mensajeNombre))
+                        nombreClass += " is-invalid";
+                    if (showValidation && !string.IsNullOrEmpty(mensajeDireccion))
+                        direccionClass += " is-invalid";
+                    if (showValidation && !string.IsNullOrEmpty(mensajeTelefono))
+                        telefonoClass += " is-invalid";
+                    if (showValidation && !string.IsNullOrEmpty(mensajeEmail))
+                        emailClass += " is-invalid";
+                }
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Tipo de Identificación <span class="text-danger">*</span></label>
+                        <InputSelect @bind-Value="cliente.TipoIdentificacion" class="@tipoIdentificacionClass">
+                            <option value="">Seleccione...</option>
+                            <option value="CEDULA">Cédula</option>
+                            <option value="RUC">RUC</option>
+                            <option value="PASAPORTE">Pasaporte</option>
+                        </InputSelect>
+                        @if (showValidation && !string.IsNullOrEmpty(mensajeTipoIdentificacion))
+                        {
+                            <div class="text-danger small mt-1">@mensajeTipoIdentificacion</div>
+                        }
+                    </div>
+
+                    <div class="col-md-8">
+                        <label class="form-label">Número de Identificación <span class="text-danger">*</span></label>
+                        <InputText @bind-Value="cliente.Identificacion"
+                                   class="@identificacionClass"
+                                   maxlength="@GetIdentificacionMaxLength()" />
+                        @if (showValidation && !string.IsNullOrEmpty(mensajeIdentificacion))
+                        {
+                            <div class="text-danger small mt-1">@mensajeIdentificacion</div>
+                        }
+                    </div>
+
+                    <div class="col-md-12">
+                        <label class="form-label">Nombre / Razón Social <span class="text-danger">*</span></label>
+                        <InputText @bind-Value="cliente.NombreRazonSocial"
+                                   class="@nombreClass" />
+                        @if (showValidation && !string.IsNullOrEmpty(mensajeNombre))
+                        {
+                            <div class="text-danger small mt-1">@mensajeNombre</div>
+                        }
+                    </div>
+
+                    <div class="col-md-12">
+                        <label class="form-label">Dirección <span class="text-danger">*</span></label>
+                        <InputText @bind-Value="cliente.Direccion"
+                                   class="@direccionClass" />
+                        @if (showValidation && !string.IsNullOrEmpty(mensajeDireccion))
+                        {
+                            <div class="text-danger small mt-1">@mensajeDireccion</div>
+                        }
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Teléfono <span class="text-danger">*</span></label>
+                        <InputText @bind-Value="cliente.Telefono"
+                                   class="@telefonoClass"
+                                   maxlength="10" />
+                        @if (showValidation && !string.IsNullOrEmpty(mensajeTelefono))
+                        {
+                            <div class="text-danger small mt-1">@mensajeTelefono</div>
+                        }
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Correo Electrónico <span class="text-danger">*</span></label>
+                        <InputText @bind-Value="cliente.Email"
+                                   class="@emailClass"
+                                   type="email" />
+                        @if (showValidation && !string.IsNullOrEmpty(mensajeEmail))
+                        {
+                            <div class="text-danger small mt-1">@mensajeEmail</div>
+                        }
+                    </div>
                 </div>
 
-                <div class="col-md-8">
-                    <label class="form-label">Número de Identificación <span class="text-danger">*</span></label>
-                    <InputText @bind-Value="cliente.Identificacion" class="form-control" maxlength="13" />
-                    <ValidationMessage For="@(() => cliente.Identificacion)" class="text-danger small" />
+                <div class="d-flex gap-2 mt-4 justify-content-end">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fa-solid fa-save me-2"></i> Guardar
+                    </button>
+                    <button type="button" class="btn btn-secondary" @onclick="Cancelar">
+                        Cancelar
+                    </button>
                 </div>
-
-                <div class="col-md-12">
-                    <label class="form-label">Nombre / Razón Social <span class="text-danger">*</span></label>
-                    <InputText @bind-Value="cliente.NombreRazonSocial" class="form-control" />
-                    <ValidationMessage For="@(() => cliente.NombreRazonSocial)" class="text-danger small" />
-                </div>
-
-                <div class="col-md-12">
-                    <label class="form-label">Dirección <span class="text-danger">*</span></label>
-                    <InputText @bind-Value="cliente.Direccion" class="form-control" />
-                    <ValidationMessage For="@(() => cliente.Direccion)" class="text-danger small" />
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label">Teléfono <span class="text-danger">*</span></label>
-                    <InputText @bind-Value="cliente.Telefono" class="form-control" maxlength="10" />
-                    <ValidationMessage For="@(() => cliente.Telefono)" class="text-danger small" />
-                </div>
-
-                <div class="col-md-6">
-                    <label class="form-label">Correo Electrónico <span class="text-danger">*</span></label>
-                    <InputText @bind-Value="cliente.Correo" class="form-control" type="email" />
-                    <ValidationMessage For="@(() => cliente.Correo)" class="text-danger small" />
-                </div>
-            </div>
-
-            <div class="d-flex gap-2 mt-4">
-                <button type="submit" class="btn btn-success">
-                    <i class="fa-solid fa-save me-2"></i> Guardar
-                </button>
-                <button type="button" class="btn btn-secondary" @onclick="Cancelar">
-                    Cancelar
-                </button>
-            </div>
-        </EditForm>
+            </EditForm>
+        </div>
     </div>
+
+    @if (!string.IsNullOrEmpty(mensajeError))
+    {
+        <div class="alert alert-danger mb-3">
+            <i class="fa-solid fa-exclamation-triangle me-2"></i>@mensajeError
+        </div>
+    }
 </div>
 
 @code {
@@ -74,13 +134,18 @@
     private bool IsEdit => Id is not null && Id > 0;
     private Cliente cliente = new Cliente();
     private string mensajeError = "";
+    private string mensajeTipoIdentificacion = "";
+    private string mensajeIdentificacion = "";
+    private string mensajeNombre = "";
+    private string mensajeDireccion = "";
+    private string mensajeTelefono = "";
+    private string mensajeEmail = "";
+    private bool showValidation = false;
 
     protected override async Task OnInitializedAsync()
     {
         if (IsEdit)
         {
-            // intenta obtener por id; si el endpoint no existe en backend,
-            // cambia a cargar la lista y buscar por id.
             var resp = await Http.GetAsync($"http://localhost:5240/api/clientes/{Id}");
             if (resp.IsSuccessStatusCode)
             {
@@ -89,7 +154,6 @@
             }
             else
             {
-                // fallback: cargar lista y buscar (por si backend no tiene GET /{id})
                 var all = await Http.GetFromJsonAsync<List<Cliente>>("http://localhost:5240/api/clientes") ?? new List<Cliente>();
                 var found = all.FirstOrDefault(c => c.Id == Id);
                 if (found is not null) cliente = found;
@@ -99,9 +163,88 @@
 
     private void Cancelar() => Nav.NavigateTo("/clientes");
 
+    private void ValidarCampos()
+    {
+        mensajeTipoIdentificacion = "";
+        mensajeIdentificacion = "";
+        mensajeNombre = "";
+        mensajeDireccion = "";
+        mensajeTelefono = "";
+        mensajeEmail = "";
+
+        if (string.IsNullOrWhiteSpace(cliente.TipoIdentificacion))
+            mensajeTipoIdentificacion = "Seleccione el tipo de identificación.";
+
+        var tipo = cliente.TipoIdentificacion?.ToUpper();
+        var id = cliente.Identificacion?.Trim() ?? "";
+
+        if (string.IsNullOrWhiteSpace(id))
+            mensajeIdentificacion = "Ingrese el número de identificación.";
+        else if (tipo == "RUC")
+        {
+            if (id.Length != 13 || !id.EndsWith("001"))
+                mensajeIdentificacion = "El RUC debe tener 13 dígitos y terminar en '001'.";
+            else if (!id.All(char.IsDigit))
+                mensajeIdentificacion = "El RUC solo debe contener números.";
+        }
+        else if (tipo == "CEDULA")
+        {
+            if (id.Length != 10)
+                mensajeIdentificacion = "La cédula debe tener 10 dígitos.";
+            else if (!id.All(char.IsDigit))
+                mensajeIdentificacion = "La cédula solo debe contener números.";
+        }
+        else if (tipo == "PASAPORTE")
+        {
+            if (id.Length < 6 || id.Length > 15)
+                mensajeIdentificacion = "El pasaporte debe tener entre 6 y 15 caracteres.";
+            else if (!id.All(c => char.IsLetterOrDigit(c)))
+                mensajeIdentificacion = "El pasaporte solo debe contener letras y números.";
+        }
+
+        if (string.IsNullOrWhiteSpace(cliente.NombreRazonSocial))
+            mensajeNombre = "El nombre o razón social es obligatorio.";
+        else if (cliente.NombreRazonSocial.Trim().Length < 3)
+            mensajeNombre = "El nombre debe tener al menos 3 caracteres.";
+
+        if (string.IsNullOrWhiteSpace(cliente.Direccion))
+            mensajeDireccion = "La dirección es obligatoria.";
+        else if (cliente.Direccion.Trim().Length < 5)
+            mensajeDireccion = "La dirección debe tener al menos 5 caracteres.";
+
+        var tel = cliente.Telefono?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(tel))
+            mensajeTelefono = "El teléfono es obligatorio.";
+        else if (tel.Length < 7 || tel.Length > 10)
+            mensajeTelefono = "El teléfono debe tener entre 7 y 10 dígitos.";
+        else if (!tel.All(char.IsDigit))
+            mensajeTelefono = "El teléfono solo debe contener números.";
+
+        var email = cliente.Email?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(email))
+            mensajeEmail = "El correo electrónico es obligatorio.";
+        else if (!email.Contains("@") || !email.Contains("."))
+            mensajeEmail = "El correo electrónico no es válido.";
+    }
+
     private async Task Guardar()
     {
+        showValidation = true;
+        ValidarCampos();
+
+        if (!string.IsNullOrEmpty(mensajeTipoIdentificacion) ||
+            !string.IsNullOrEmpty(mensajeIdentificacion) ||
+            !string.IsNullOrEmpty(mensajeNombre) ||
+            !string.IsNullOrEmpty(mensajeDireccion) ||
+            !string.IsNullOrEmpty(mensajeTelefono) ||
+            !string.IsNullOrEmpty(mensajeEmail))
+        {
+            mensajeError = "Corrija los errores antes de guardar.";
+            return;
+        }
+
         mensajeError = "";
+
         var dto = new
         {
             tipoIdentificacion = cliente.TipoIdentificacion,
@@ -109,7 +252,7 @@
             nombreRazonSocial = cliente.NombreRazonSocial?.Trim(),
             telefono = cliente.Telefono?.Trim(),
             direccion = cliente.Direccion?.Trim(),
-            correo = cliente.Correo?.Trim()
+            Email = cliente.Email?.Trim()
         };
 
         HttpResponseMessage response;
@@ -131,5 +274,32 @@
         {
             mensajeError = "Error al guardar el cliente";
         }
+    }
+
+    private int GetIdentificacionMaxLength()
+    {
+        var tipo = cliente.TipoIdentificacion?.ToUpper();
+        return tipo switch
+        {
+            "RUC" => 13,
+            "CEDULA" => 10,
+            "PASAPORTE" => 15,
+            _ => 13
+        };
+    }
+
+    private string GetFieldClass(string field)
+    {
+        if (!showValidation) return "";
+        return field switch
+        {
+            nameof(cliente.TipoIdentificacion) => !string.IsNullOrEmpty(mensajeTipoIdentificacion) ? "is-invalid" : "",
+            nameof(cliente.Identificacion) => !string.IsNullOrEmpty(mensajeIdentificacion) ? "is-invalid" : "",
+            nameof(cliente.NombreRazonSocial) => !string.IsNullOrEmpty(mensajeNombre) ? "is-invalid" : "",
+            nameof(cliente.Direccion) => !string.IsNullOrEmpty(mensajeDireccion) ? "is-invalid" : "",
+            nameof(cliente.Telefono) => !string.IsNullOrEmpty(mensajeTelefono) ? "is-invalid" : "",
+            nameof(cliente.Email) => !string.IsNullOrEmpty(mensajeEmail) ? "is-invalid" : "",
+            _ => ""
+        };
     }
 }
