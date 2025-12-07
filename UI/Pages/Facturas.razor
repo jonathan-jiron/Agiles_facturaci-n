@@ -1,0 +1,254 @@
+@page "/facturas"
+@attribute [Authorize]
+@layout MainLayout
+@inject FacturaService FacturaService
+@inject NavigationManager Navigation
+@inject FacturaEventService FacturaEventService
+@inject NotificationService NotificationService
+@using Application.DTOs
+@using UI.Shared
+
+<PageTitle>Gestión de Facturas</PageTitle>
+
+<div class="content-area">
+    <h2 class="fw-bold text-primary mb-4">
+        <i class="fas fa-file-invoice me-2"></i>
+        Gestión de Facturas
+    </h2>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <button class="btn btn-primary mb-0" @onclick='() => Navigation.NavigateTo("/facturacion")'>
+                    <i class="fas fa-plus"></i> Nueva Factura
+                </button>
+
+                <!-- Búsqueda dinámica facturas -->
+                <div class="d-flex gap-2 align-items-center">
+                    <select class="form-select form-select-sm" style="width:200px" @bind="factSearchField">
+                        <option value="All">Buscar en: Todo</option>
+                        <option value="Numero">Número</option>
+                        <option value="ClienteNombre">Cliente</option>
+                        <option value="Fecha">Fecha</option>
+                        <option value="Estado">Estado</option>
+                    </select>
+                    <input class="form-control form-control-sm" style="width:360px" placeholder="Buscar facturas..." @bind="factSearchTerm" @bind:event="oninput" />
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="ClearFactFilter" title="Limpiar búsqueda"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+
+            @if (cargando)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2">Cargando facturas...</p>
+                </div>
+            }
+            else if (!filteredFacturas.Any())
+            {
+                <div class="alert alert-info">
+                    <i class="fa-solid fa-info-circle"></i> No hay facturas que coincidan con la búsqueda.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped align-middle" style="width: 100%;">
+                        <thead>
+                            <tr class="table-info">
+                                <th>Número</th>
+                                <th>Cliente</th>
+                                <th>Fecha</th>
+                                <th class="text-end">Total</th>
+                                <th class="text-end">Estado</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var factura in paginadasFacturas)
+                            {
+                                <tr>
+                                    <td class="fw-bold">@factura.Numero</td>
+                                    <td>@(factura.ClienteNombre ?? "N/A")</td>
+                                    <td>@factura.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td class="text-end fw-bold text-success">$@factura.Total.ToString("N2")</td>
+                                    <td class="text-end">
+                                        <span class="badge @GetEstadoBadgeClass(factura.Estado)">
+                                            @factura.Estado
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        @if (factura.Estado?.ToLower() != "firmada")
+                                        {
+                                            <button class="btn btn-warning btn-sm me-1" @onclick="() => FirmarFactura(factura.Id)">
+                                                <i class="fas fa-signature"></i>
+                                            </button>
+                                        }
+                                        @if (factura.Estado?.ToLower() == "firmada")
+                                        {
+                                            <button class="btn btn-primary btn-sm me-1" @onclick="() => VerDetalle(factura.Id)">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn btn-secondary btn-sm me-1" title="Descargar PDF">
+                                                <i class="fas fa-file-pdf"></i>
+                                            </button>
+                                            <button class="btn btn-info btn-sm" title="Descargar XML">
+                                                <i class="fas fa-file-code"></i>
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (totalPaginas > 1)
+    {
+        <div class="d-flex flex-column flex-md-row align-items-center justify-content-between mt-3">
+            <div class="mb-2 mb-md-0 text-muted small">
+                Página <span class="fw-bold">@paginaActual</span> de <span class="fw-bold">@totalPaginas</span>
+            </div>
+            <nav aria-label="Paginación de facturas">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item @(paginaActual == 1 ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => CambiarPagina(paginaActual - 1)">
+                            <i class="fas fa-angle-left"></i>
+                        </button>
+                    </li>
+                    @for (int i = 1; i <= totalPaginas; i++)
+                    {
+                        var pagina = i;
+                        <li class="page-item @(paginaActual == pagina ? "active" : "")">
+                            <button class="page-link" @onclick="() => CambiarPagina(pagina)">
+                                @pagina
+                            </button>
+                        </li>
+                    }
+                    <li class="page-item @(paginaActual == totalPaginas ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => CambiarPagina(paginaActual + 1)">
+                            <i class="fas fa-angle-right"></i>
+                        </button>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    }
+</div>
+
+@code {
+    private List<FacturaListDto> facturas = new();
+    private bool cargando = true;
+
+    // búsqueda dinámica
+    private string factSearchTerm = "";
+    private string factSearchField = "All";
+
+    private int paginaActual = 1;
+    private int itemsPorPagina = 10;
+    private int totalPaginas => (int)Math.Ceiling((double)filteredFacturas.Count() / itemsPorPagina);
+    private IEnumerable<FacturaListDto> paginadasFacturas => filteredFacturas.Skip((paginaActual - 1) * itemsPorPagina).Take(itemsPorPagina);
+
+    private IEnumerable<FacturaListDto> filteredFacturas => GetFilteredFacturas();
+
+    protected override async Task OnInitializedAsync()
+    {
+        FacturaEventService.FacturaGuardada += OnFacturaGuardada;
+        await CargarFacturas();
+    }
+
+    private async void OnFacturaGuardada()
+    {
+        await CargarFacturas();
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        FacturaEventService.FacturaGuardada -= OnFacturaGuardada;
+    }
+
+    private async Task CargarFacturas()
+    {
+        cargando = true;
+        try
+        {
+            facturas = await FacturaService.ListarFacturasAsync();
+            facturas = facturas.OrderByDescending(f => f.Fecha).ToList();
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private IEnumerable<FacturaListDto> GetFilteredFacturas()
+    {
+        if (string.IsNullOrWhiteSpace(factSearchTerm)) return facturas;
+
+        var term = factSearchTerm.Trim().ToLowerInvariant();
+
+        return facturas.Where(f =>
+        {
+            return factSearchField switch
+            {
+                "Numero" => (f.Numero ?? "").ToLowerInvariant().Contains(term),
+                "ClienteNombre" => (f.ClienteNombre ?? "").ToLowerInvariant().Contains(term),
+                "Fecha" => f.Fecha.ToString("dd/MM/yyyy HH:mm").ToLowerInvariant().Contains(term),
+                "Estado" => (f.Estado ?? "").ToLowerInvariant().Contains(term),
+                _ => (
+                        (f.Numero ?? "").ToLowerInvariant().Contains(term)
+                        || (f.ClienteNombre ?? "").ToLowerInvariant().Contains(term)
+                        || f.Fecha.ToString("dd/MM/yyyy HH:mm").ToLowerInvariant().Contains(term)
+                        || (f.Estado ?? "").ToLowerInvariant().Contains(term)
+                    )
+            };
+        });
+    }
+
+    private void ClearFactFilter()
+    {
+        factSearchTerm = "";
+        factSearchField = "All";
+    }
+
+    private void VerDetalle(int facturaId)
+    {
+        Navigation.NavigateTo($"/facturas/consulta/{facturaId}");
+    }
+
+    private void CambiarPagina(int nuevaPagina)
+    {
+        if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas)
+        {
+            paginaActual = nuevaPagina;
+        }
+    }
+
+    private string GetEstadoBadgeClass(string? estado) => estado?.ToLower() switch
+    {
+        "firmada" => "bg-success",
+        "guardada" => "bg-warning text-dark",
+        "rechazada" => "bg-danger",
+        "enviada" => "bg-info",
+        _ => "bg-secondary"
+    };
+
+    private async Task FirmarFactura(int facturaId)
+    {
+        NotificationService.ShowInfo("Firmando factura...");
+        var resp = await FacturaService.FirmarFacturaAsync(facturaId);
+        if (resp)
+        {
+            NotificationService.ShowSuccess("Factura firmada correctamente.");
+            await CargarFacturas();
+        }
+        else
+        {
+            NotificationService.ShowError("No se pudo firmar la factura.");
+        }
+    }
+}

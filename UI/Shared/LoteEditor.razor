@@ -1,0 +1,200 @@
+@namespace UI.Shared
+@using Domain.Entities
+@using System.ComponentModel.DataAnnotations
+
+@if (Visible)
+{
+    <div class="card border-light mb-3">
+        <div class="card-body">
+            <EditForm Model="model" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <div class="row g-1">
+                    <div class="col-md-5">
+                        <label class="form-label">N° Lote / Factura <span class="text-danger">*</span></label>
+                        <InputText @bind-Value="model.NumeroLote" class="form-control" />
+                        <ValidationMessage For="@(() => model.NumeroLote)" class="text-danger small" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Cantidad <span class="text-danger">*</span></label>
+                        <InputNumber @bind-Value="model.Cantidad" class="form-control" />
+                        <ValidationMessage For="@(() => model.Cantidad)" class="text-danger small" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Precio Unitario <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <InputNumber @bind-Value="model.PrecioUnitario" step="0.01" class="form-control" />
+                        </div>
+                        <ValidationMessage For="@(() => model.PrecioUnitario)" class="text-danger small" />
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label">Fecha Ingreso</label>
+                        <InputDate @bind-Value="model.FechaIngreso" class="form-control" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Fecha Vencimiento</label>
+                        <InputDate @bind-Value="model.FechaVencimiento" class="form-control" />
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-3">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fa-solid fa-@(IsEdit ? "pen-to-square" : "plus") me-2"></i>
+                        @(IsEdit ? "Actualizar Lote" : "Agregar Lote")
+                    </button>
+                    <button type="button" class="btn btn-secondary" @onclick="Cancel">
+                        Cancelar
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@* Modal de confirmaci�n cuando el costo del lote >= precio de venta *@
+@if (showConfirmModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title"><i class="fa-solid fa-triangle-exclamation me-2"></i>Confirmar costo alto</h5>
+                    <button type="button" class="btn-close" @onclick="CancelConfirm"></button>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        El precio de costo del lote <strong>@($"${pendingModel?.PrecioUnitario:N2}")</strong>
+                        es mayor o igual que el precio de venta del producto <strong>@($"${ProductPrecioVenta:N2}")</strong>.
+                    </p>
+                    <p>�Deseas continuar y guardar este lote con costo mayor o volver para modificarlo?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CancelConfirm">Cancelar</button>
+                    <button class="btn btn-danger" @onclick="ConfirmSave">Aceptar y guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private LoteModel model = new();
+    private bool Visible;
+    private bool IsEdit;
+    private int? editingIndex;
+
+    private bool showConfirmModal = false;
+    private LoteModel? pendingModel;
+
+    [Parameter] public EventCallback<(Lote lote, int? index)> OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    // Precio de venta del producto para comparar
+    [Parameter] public decimal ProductPrecioVenta { get; set; } = 0m;
+
+    public Task ShowNew()
+    {
+        model = new LoteModel { FechaIngreso = DateTime.Now };
+        editingIndex = null;
+        IsEdit = false;
+        Visible = true;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    public Task Edit(Lote lote, int index)
+    {
+        model = new LoteModel
+        {
+            NumeroLote = lote.NumeroLote,
+            Cantidad = lote.Cantidad,
+            PrecioUnitario = lote.PrecioUnitario,
+            FechaIngreso = lote.FechaIngreso,
+            FechaVencimiento = lote.FechaVencimiento
+        };
+        editingIndex = index;
+        IsEdit = true;
+        Visible = true;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        // Mostrar confirmaci�n si el precio unitario es mayor o igual al precio de venta
+        if (model.PrecioUnitario >= ProductPrecioVenta)
+        {
+            pendingModel = new LoteModel
+            {
+                NumeroLote = model.NumeroLote,
+                Cantidad = model.Cantidad,
+                PrecioUnitario = model.PrecioUnitario,
+                FechaIngreso = model.FechaIngreso,
+                FechaVencimiento = model.FechaVencimiento
+            };
+            showConfirmModal = true;
+            StateHasChanged();
+            return;
+        }
+
+        await DoSave(model);
+    }
+
+    // Confirmaci�n: aceptar guardar lote con costo alto
+    private async Task ConfirmSave()
+    {
+        if (pendingModel is not null)
+        {
+            showConfirmModal = false;
+            await DoSave(pendingModel);
+            pendingModel = null;
+        }
+    }
+
+    private Task CancelConfirm()
+    {
+        showConfirmModal = false;
+        pendingModel = null;
+        // permanecer en editor para que el usuario modifique el precio
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task DoSave(LoteModel m)
+    {
+        var result = new Lote
+        {
+            Id = 0,
+            NumeroLote = m.NumeroLote,
+            Cantidad = m.Cantidad,
+            PrecioUnitario = m.PrecioUnitario,
+            FechaIngreso = m.FechaIngreso,
+            FechaVencimiento = m.FechaVencimiento
+        };
+
+        Visible = false;
+        await OnSave.InvokeAsync((result, editingIndex));
+    }
+
+    private async Task Cancel()
+    {
+        Visible = false;
+        await OnCancel.InvokeAsync();
+    }
+
+    private class LoteModel
+    {
+        [Required(ErrorMessage = "El n�mero de lote es requerido")]
+        public string NumeroLote { get; set; } = "";
+
+        [Range(1, int.MaxValue, ErrorMessage = "La cantidad debe ser mayor o igual a 1")]
+        public int Cantidad { get; set; } = 1;
+
+        [Range(0.01, double.MaxValue, ErrorMessage = "El precio unitario debe ser mayor a 0")]
+        public decimal PrecioUnitario { get; set; } = 0.01m;
+
+        public DateTime FechaIngreso { get; set; } = DateTime.Now;
+        public DateTime? FechaVencimiento { get; set; }
+    }
+}

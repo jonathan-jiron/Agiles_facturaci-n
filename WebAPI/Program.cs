@@ -1,9 +1,14 @@
 using Infrastructure.Data;
+using Microsoft.OpenApi.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json.Serialization;
 using WebAPI.Seed;
+using Domain.Interfaces;
+using Infrastructure.Data.Repositories;
+using Application.Services;
+using Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,7 +21,25 @@ builder.Services.AddControllers()
         json.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
     });
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Agiles Facturacion API", Version = "v1" });
+    var jwtScheme = new OpenApiSecurityScheme
+    {
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Description = "Ingrese 'Bearer {token}'",
+        Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+    };
+    c.AddSecurityDefinition("Bearer", jwtScheme);
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        { jwtScheme, Array.Empty<string>() }
+    });
+});
 
 // Configuración de DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -57,6 +80,14 @@ builder.Services.AddAuthentication("Bearer")
 
 builder.Services.AddAuthorization();
 
+// Facturación: repositorios y servicios
+builder.Services.AddScoped<IFacturaRepository, FacturaRepository>();
+builder.Services.AddScoped<IDetalleFacturaRepository, DetalleFacturaRepository>();
+builder.Services.AddScoped<FacturaService>();
+// Product lookup (obtiene precio desde la BD)
+builder.Services.AddScoped<Application.Interfaces.IProductLookup, Infrastructure.Services.ProductLookup>();
+// Lote allocator (asigna lotes por FIFO y decrementa stock)
+builder.Services.AddScoped<Application.Interfaces.ILoteAllocator, Infrastructure.Services.LoteAllocator>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

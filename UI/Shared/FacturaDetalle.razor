@@ -1,0 +1,160 @@
+@using Application.DTOs
+@using UI.Services
+@using Microsoft.AspNetCore.Components
+
+@inject NotificationService NotificationService
+
+@if (Factura != null)
+{
+    <!-- Modal Backdrop -->
+    <div class="modal-backdrop fade show"></div>
+
+    <!-- Modal -->
+    <div class="modal fade show d-block" tabindex="-1">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-file-invoice me-2"></i>Detalle de Factura - @Factura.Numero
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="OnCerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Información General</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-2"><strong>Número:</strong> @Factura.Numero</p>
+                                    <p class="mb-2"><strong>Fecha:</strong> @Factura.Fecha.ToString("dd/MM/yyyy HH:mm")</p>
+                                    <p class="mb-2">
+                                        <strong>Estado:</strong> 
+                                        <span class="badge @GetEstadoBadgeClass(Factura.Estado)">@Factura.Estado</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="fas fa-user me-2"></i>Datos del Cliente</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-2"><strong>Nombre:</strong> @(Factura.ClienteNombre ?? "N/A")</p>
+                                    <p class="mb-2"><strong>Identificación:</strong> @(Factura.ClienteIdentificacion ?? "N/A")</p>
+                                    <p class="mb-2"><strong>Email:</strong> @(Factura.ClienteEmail ?? "N/A")</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="fas fa-boxes me-2"></i>Productos</h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Producto</th>
+                                            <th class="text-end">Cantidad</th>
+                                            <th class="text-end">Precio Unit.</th>
+                                            <th class="text-end">Subtotal</th>
+                                            <th class="text-end">IVA</th>
+                                            <th class="text-end">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if (Factura.Detalles != null && Factura.Detalles.Any())
+                                        {
+                                            @foreach (var detalle in Factura.Detalles)
+                                            {
+                                                <tr>
+                                                    <td>@(detalle.ProductoNombre ?? $"Producto #{detalle.ProductoId}")</td>
+                                                    <td class="text-end">@detalle.Cantidad</td>
+                                                    <td class="text-end">$@detalle.PrecioUnitario.ToString("N2")</td>
+                                                    <td class="text-end">$@((detalle.PrecioUnitario * detalle.Cantidad).ToString("N2"))</td>
+                                                    <td class="text-end">$@detalle.Iva.ToString("N2")</td>
+                                                    <td class="text-end fw-bold">$@detalle.Total.ToString("N2")</td>
+                                                </tr>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <tr>
+                                                <td colspan="6" class="text-center text-muted">No hay productos en esta factura</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 offset-md-6">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Subtotal:</span>
+                                        <span class="fw-bold">$@Factura.Subtotal.ToString("N2")</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>IVA (12%):</span>
+                                        <span class="fw-bold">$@Factura.Iva.ToString("N2")</span>
+                                    </div>
+                                    <hr />
+                                    <div class="d-flex justify-content-between">
+                                        <span class="fs-5 fw-bold">Total:</span>
+                                        <span class="fs-4 fw-bold text-success">$@Factura.Total.ToString("N2")</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if (Factura.Estado == "Rechazada")
+                    {
+                        <div class="alert alert-danger mt-3">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            <strong>Factura Rechazada:</strong> Esta factura fue rechazada por el SRI. Contacte con soporte para más información.
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" disabled title="Próximamente">
+                        <i class="fas fa-file-pdf me-2"></i>Descargar PDF
+                    </button>
+                    <button class="btn btn-info" @onclick="MostrarEnviarEmail" disabled title="Próximamente">
+                        <i class="fas fa-envelope me-2"></i>Enviar por Email
+                    </button>
+                    <button class="btn btn-primary" @onclick="OnCerrar">
+                        <i class="fas fa-times me-2"></i>Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public FacturaDto? Factura { get; set; }
+    [Parameter] public EventCallback OnCerrar { get; set; }
+
+    private void MostrarEnviarEmail()
+    {
+        NotificationService.ShowInfo("Funcionalidad de envío de email estará disponible próximamente");
+    }
+
+    private string GetEstadoBadgeClass(string estado) => estado?.ToLower() switch
+    {
+        "autorizada" => "bg-success",
+        "generada" => "bg-warning text-dark",
+        "rechazada" => "bg-danger",
+        "enviada" => "bg-info",
+        _ => "bg-secondary"
+    };
+}

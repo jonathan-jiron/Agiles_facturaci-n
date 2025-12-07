@@ -1,58 +1,27 @@
 @* filepath: c:\MasterFacturacion\Agiles_facturaci-n\UI\Shared\MainLayout.razor *@
 @namespace UI.Shared
 @inherits LayoutComponentBase
-@inject AuthService AuthService
-@inject NavigationManager Nav
-@using UI.Services
-
-<div class="layout-root">
-    @if (isLogged)
-    {
-        <aside class="sidebar">
-            <NavMenu />
-        </aside>
-    }
-    <div class="main-column">
-        <header class="topbar d-flex align-items-center justify-content-between px-3 py-2 border-bottom bg-white">
-            <div class="topbar-left">
-                @if (isLogged && user is not null)
-                {
-                    <span class="fw-semibold"><i class="fa-solid fa-user me-1"></i>@user.Username (@user.Rol)</span>
-                }
-            </div>
-            <div class="topbar-right">
-                @if (isLogged)
-                {
-                    <button class="btn btn-sm btn-outline-danger" @onclick="Logout">
-                        <i class="fa-solid fa-right-from-bracket me-1"></i>Salir
-                    </button>
-                }
-            </div>
-        </header>
-        <main class="content-area">
-            <div class="page-container">
-                @Body
-            </div>
-        </main>
-    </div>
-</div>
 
 @code {
-    private bool isLogged;
-    private UsuarioInfo? user;
-
-    protected override async Task OnParametersSetAsync()
-    {
-        isLogged = await AuthService.IsAuthenticated();
-        user = await AuthService.GetCurrentUser();
-    }
-
-    private async Task Logout()
-    {
-        await AuthService.LogoutAsync();
-        Nav.NavigateTo("/login", forceLoad: true);
-    }
+    private bool menuMinimizado = false;
+    private void ToggleMenu() => menuMinimizado = !menuMinimizado;
 }
+
+<div class="page-wrapper">
+    <div class="sidebar-modern @(menuMinimizado ? "minimizado" : "")">
+        <div class="toggle-btn-container">
+            <button class="toggle-btn" @onclick="ToggleMenu" title="Minimizar menú">
+                <i class="fa-solid @(menuMinimizado ? "fa-chevron-right" : "fa-chevron-left")"></i>
+            </button>
+        </div>
+        <NavMenu Minimizado="menuMinimizado" />
+    </div>
+    <div class="main-content @(menuMinimizado ? "expandido" : "")">
+        <div class="content-area @(menuMinimizado ? "ampliado" : "")">
+            @Body
+        </div>
+    </div>
+</div>
 
 <style>
     * {
@@ -64,156 +33,63 @@
     .page-wrapper {
         display: flex;
         min-height: 100vh;
+        width: 100vw;
         background: #f8f9fa;
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
     }
 
     .sidebar-modern {
-        width: 260px;
-        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
-        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-        position: fixed;
-        height: 100vh;
-        overflow-y: auto;
-        z-index: 1000;
-    }
-
-    .sidebar-header {
-        padding: 2rem 1.5rem;
-        text-align: center;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .sidebar-logo {
-        font-size: 3rem;
-        color: white;
-        margin-bottom: 0.5rem;
-        display: block;
-    }
-
-    .sidebar-title {
-        color: white;
-        font-weight: 600;
-        margin: 0;
-        font-size: 1.25rem;
-    }
-
-    .top-header {
-        background: white;
-        border-bottom: 1px solid #e9ecef;
-        padding: 1rem 2rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        position: sticky;
-        top: 0;
-        z-index: 100;
-    }
-
-    .header-left h6 {
-        font-size: 1.1rem;
-    }
-
-    .header-right {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .user-profile {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        background: #f8f9fa;
-        padding: 0.5rem 1rem;
-        border-radius: 12px;
-    }
-
-    .user-avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 1.1rem;
-    }
-
-    .user-info {
+        width: 270px;
+        transition: width 0.2s;
+        background: linear-gradient(180deg, #6a82fb 0%, #fc5c7d 100%);
+        min-height: 100vh;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+        position: relative;
         display: flex;
         flex-direction: column;
+        align-items: stretch;
+        overflow: hidden;
     }
 
-    .user-name {
-        font-weight: 600;
-        color: #2d3748;
-        font-size: 0.9rem;
+    .sidebar-modern.minimizado {
+        width: 72px;
     }
 
-    .user-role {
-        font-size: 0.75rem;
-        color: #718096;
-        background: #e2e8f0;
-        padding: 0.15rem 0.5rem;
-        border-radius: 6px;
-        display: inline-block;
+    .toggle-btn-container {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        padding: 16px 12px 8px 0;
     }
 
-    .btn-logout {
-        background: #fee;
-        color: #e53e3e;
+    .toggle-btn {
+        background: rgba(255, 255, 255, 0.18);
         border: none;
+        color: #fff;
+        border-radius: 8px;
         width: 40px;
         height: 40px;
-        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        transition: all 0.3s;
-        font-size: 1.1rem;
+        transition: background 0.2s;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        font-size: 1.3rem;
     }
 
-    .btn-logout:hover {
-        background: #e53e3e;
-        color: white;
-        transform: scale(1.05);
+    .toggle-btn:hover {
+        background: rgba(255, 255, 255, 0.35);
     }
 
     .main-content {
-        flex: 1;
-        margin-left: 260px;
+        width: 100%;
+        transition: margin-left 0.2s;
         display: flex;
         flex-direction: column;
-    }
-
-    .content-area {
-        flex: 1;
-        background: #f8f9fa;
-        padding: 24px 28px 32px 32px; /* nuevo espacio alrededor del contenido */
-    }
-
-    .page-container {
-        max-width: 1500px;
-        margin: 0 auto;
-    }
-
-    @@media (max-width: 768px) {
-        .sidebar-modern {
-            transform: translateX(-100%);
-            transition: transform 0.3s;
-        }
-
-        .main-content {
-            margin-left: 0;
-        }
-
-        .user-info {
-            display: none;
-        }
+        justify-content: center;
     }
 
     .sidebar-modern::-webkit-scrollbar {

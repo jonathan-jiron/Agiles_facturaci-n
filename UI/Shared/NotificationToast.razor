@@ -1,0 +1,77 @@
+@inject NotificationService NotificationService
+@implements IDisposable
+
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+    @foreach (var notification in notifications)
+    {
+        <div class="toast show @GetToastClass(notification.Type)" role="alert">
+            <div class="toast-header">
+                <i class="@GetIconClass(notification.Type) me-2"></i>
+                <strong class="me-auto">@GetTitle(notification.Type)</strong>
+                <button type="button" class="btn-close" @onclick="() => RemoveNotification(notification)"></button>
+            </div>
+            <div class="toast-body">
+                @notification.Message
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<NotificationMessage> notifications = new();
+
+    protected override void OnInitialized()
+    {
+        NotificationService.OnNotification += HandleNotification;
+    }
+
+    private void HandleNotification(NotificationMessage notification)
+    {
+        notifications.Add(notification);
+        StateHasChanged();
+
+        // Auto-dismiss after 5 seconds
+        _ = Task.Delay(5000).ContinueWith(_ =>
+        {
+            RemoveNotification(notification);
+        });
+    }
+
+    private void RemoveNotification(NotificationMessage notification)
+    {
+        notifications.Remove(notification);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private string GetToastClass(NotificationType type) => type switch
+    {
+        NotificationType.Success => "bg-success text-white",
+        NotificationType.Error => "bg-danger text-white",
+        NotificationType.Warning => "bg-warning text-dark",
+        NotificationType.Info => "bg-info text-white",
+        _ => "bg-secondary text-white"
+    };
+
+    private string GetIconClass(NotificationType type) => type switch
+    {
+        NotificationType.Success => "fas fa-check-circle",
+        NotificationType.Error => "fas fa-exclamation-circle",
+        NotificationType.Warning => "fas fa-exclamation-triangle",
+        NotificationType.Info => "fas fa-info-circle",
+        _ => "fas fa-bell"
+    };
+
+    private string GetTitle(NotificationType type) => type switch
+    {
+        NotificationType.Success => "Éxito",
+        NotificationType.Error => "Error",
+        NotificationType.Warning => "Advertencia",
+        NotificationType.Info => "Información",
+        _ => "Notificación"
+    };
+
+    public void Dispose()
+    {
+        NotificationService.OnNotification -= HandleNotification;
+    }
+}

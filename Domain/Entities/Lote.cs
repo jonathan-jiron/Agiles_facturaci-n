@@ -1,3 +1,5 @@
+using Domain.Entities;
+
 namespace Domain.Entities
 {
     public class Lote

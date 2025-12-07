@@ -1,0 +1,233 @@
+@inject HttpClient Http
+
+<div class="mb-3 position-relative">
+    <label class="form-label">@Label</label>
+    <input type="text" 
+           class="form-control @(IsValid ? "" : "is-invalid")" 
+           value="@searchText"
+           @oninput="OnSearchTextChanged"
+           @onfocus="OnFocus"
+           @onblur="OnBlur"
+           placeholder="Buscar por código o nombre..."
+           autocomplete="off" />
+    
+    @if (!IsValid && !string.IsNullOrEmpty(ValidationMessage))
+    {
+        <div class="invalid-feedback d-block">@ValidationMessage</div>
+    }
+    
+    @if (showDropdown && productosFiltrados.Any())
+    {
+        <div class="autocomplete-dropdown">
+            @foreach (var producto in productosFiltrados.Take(10))
+            {
+                var agotado = producto.Stock == 0;
+                var stockBajo = producto.Stock < 10 && producto.Stock > 0;
+                
+                <div class="autocomplete-item @(agotado ? "disabled" : "")" 
+                     @onmousedown="() => !agotado ? SeleccionarProducto(producto) : Task.CompletedTask">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="fw-bold">@producto.Nombre</div>
+                            <small class="text-muted">Código: @producto.Codigo</small>
+                        </div>
+                        <div class="text-end ms-3">
+                            <div class="fw-bold text-success">$@producto.PrecioVenta.ToString("N2")</div>
+                            @if (agotado)
+                            {
+                                <small class="badge bg-danger">AGOTADO</small>
+                            }
+                            else if (stockBajo)
+                            {
+                                <small class="badge bg-warning text-dark">@producto.Stock unid.</small>
+                            }
+                            else
+                            {
+                                <small class="text-muted">Stock: @producto.Stock</small>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    
+    @if (productoSeleccionado != null)
+    {
+        <div class="mt-2">
+            <span class="badge bg-success">
+                <i class="fas fa-box me-1"></i>
+                @productoSeleccionado.Nombre - $@productoSeleccionado.PrecioVenta.ToString("N2") (Stock: @productoSeleccionado.Stock)
+                <button type="button" class="btn-close btn-close-white ms-2" style="font-size: 0.7rem;" @onclick="LimpiarSeleccion"></button>
+            </span>
+        </div>
+        
+        @if (productoSeleccionado.Stock < 10 && productoSeleccionado.Stock > 0)
+        {
+            <div class="alert alert-warning mt-2 py-2">
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                Stock bajo: @productoSeleccionado.Stock unidades disponibles
+            </div>
+        }
+    }
+</div>
+
+<style>
+    .autocomplete-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        max-height: 400px;
+        overflow-y: auto;
+        z-index: 1000;
+        margin-top: 0.25rem;
+    }
+    
+    .autocomplete-item {
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f0f0;
+        transition: background-color 0.15s;
+    }
+    
+    .autocomplete-item:last-child {
+        border-bottom: none;
+    }
+    
+    .autocomplete-item:hover:not(.disabled) {
+        background-color: #f8f9fa;
+    }
+    
+    .autocomplete-item.disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        background-color: #f9f9f9;
+    }
+</style>
+
+@code {
+    [Parameter] public int SelectedProductoId { get; set; }
+    [Parameter] public EventCallback<int> SelectedProductoIdChanged { get; set; }
+    [Parameter] public EventCallback<ProductoDto?> OnProductoSelected { get; set; }
+    [Parameter] public string Label { get; set; } = "Producto";
+    [Parameter] public bool IsValid { get; set; } = true;
+    [Parameter] public string ValidationMessage { get; set; } = "";
+
+    private List<ProductoDto> productos = new();
+    private List<ProductoDto> productosFiltrados = new();
+    private ProductoDto? productoSeleccionado;
+    private string searchText = "";
+    private bool showDropdown = false;
+    private bool isBlurring = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarProductos();
+    }
+
+    private async Task CargarProductos()
+    {
+        try
+        {
+            var response = await Http.GetFromJsonAsync<List<ProductoDto>>("api/productos");
+            productos = response ?? new List<ProductoDto>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando productos: {ex.Message}");
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (SelectedProductoId > 0 && productoSeleccionado?.Id != SelectedProductoId)
+        {
+            productoSeleccionado = productos.FirstOrDefault(p => p.Id == SelectedProductoId);
+            if (productoSeleccionado != null)
+            {
+                searchText = productoSeleccionado.Nombre;
+            }
+        }
+        
+        FiltrarProductos();
+    }
+
+    private void FiltrarProductos()
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            productosFiltrados = new();
+            return;
+        }
+
+        var searchLower = searchText.ToLower();
+        productosFiltrados = productos
+            .Where(p => 
+                p.Nombre.ToLower().Contains(searchLower) ||
+                p.Codigo.ToLower().Contains(searchLower))
+            .OrderByDescending(p => p.Stock > 0) // Disponibles primero
+            .ThenBy(p => p.Nombre)
+            .ToList();
+    }
+
+    private void OnSearchTextChanged(ChangeEventArgs e)
+    {
+        searchText = e.Value?.ToString() ?? "";
+        showDropdown = true;
+        FiltrarProductos();
+    }
+
+    private void OnFocus()
+    {
+        showDropdown = true;
+        FiltrarProductos();
+    }
+
+    private async Task OnBlur()
+    {
+        isBlurring = true;
+        await Task.Delay(200);
+        if (isBlurring)
+        {
+            showDropdown = false;
+        }
+    }
+
+    private async Task SeleccionarProducto(ProductoDto producto)
+    {
+        isBlurring = false;
+        productoSeleccionado = producto;
+        searchText = producto.Nombre;
+        SelectedProductoId = producto.Id;
+        showDropdown = false;
+        
+        await SelectedProductoIdChanged.InvokeAsync(producto.Id);
+        await OnProductoSelected.InvokeAsync(producto);
+    }
+
+    private async Task LimpiarSeleccion()
+    {
+        productoSeleccionado = null;
+        searchText = "";
+        SelectedProductoId = 0;
+        productosFiltrados = new();
+        
+        await SelectedProductoIdChanged.InvokeAsync(0);
+        await OnProductoSelected.InvokeAsync(null);
+    }
+
+    public class ProductoDto
+    {
+        public int Id { get; set; }
+        public string Codigo { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
+        public decimal PrecioVenta { get; set; }
+        public int Stock { get; set; }
+        public bool TieneIva { get; set; }
+    }
+}

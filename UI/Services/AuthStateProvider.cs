@@ -48,10 +48,10 @@ public class AuthStateProvider : AuthenticationStateProvider
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
     }
 
-    public async Task MarkUserLoggedOutAsync()
+    public Task MarkUserLoggedOutAsync()
     {
         var anonymous = new ClaimsPrincipal(new ClaimsIdentity());
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(anonymous)));
-        await Task.CompletedTask; // Ya está correcto, el warning es menor
+        return Task.CompletedTask;
     }
 }
