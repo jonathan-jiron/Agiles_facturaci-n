@@ -217,7 +217,7 @@ public class FacturaService
         var emisorRazonSocial = _config["Sri:EmisorRazonSocial"] ?? "";
         var emisorNombreComercial = _config["Sri:EmisorNombreComercial"] ?? "";
         var dirMatriz = _config["Sri:DirMatriz"] ?? "";
-        var ambiente = _config["Sri:Ambiente"] == "1" ? "PRODUCCION" : "PRUEBAS";
+        var ambiente = _config["Sri:Ambiente"] == "1" ? "PRUEBAS" : "PRODUCCION";
         var tipoEmision = _config["Sri:TipoEmision"] == "1" ? "NORMAL" : "CONTINGENCIA";
 
         // Calcular subtotales por tarifa de IVA
