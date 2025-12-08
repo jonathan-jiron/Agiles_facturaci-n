@@ -77,10 +77,15 @@ public class FacturaService
         }
 
         // Calcula totales primero
-        var subtotal = dto.Detalles.Sum(d => d.PrecioUnitario * d.Cantidad);
+        // Subtotal sin descuento (para referencia)
+        var subtotalSinDescuento = dto.Detalles.Sum(d => d.PrecioUnitario * d.Cantidad);
         var descuentoTotal = dto.Detalles.Sum(d => d.Descuento);
+        // Subtotal después del descuento (ya calculado en cada detalle)
+        var subtotalConDescuento = dto.Detalles.Sum(d => (d.PrecioUnitario * d.Cantidad) - d.Descuento);
+        // IVA ya está calculado sobre el subtotal después del descuento en cada detalle
         var iva = dto.Detalles.Sum(d => d.IvaLinea);
-        var total = subtotal - descuentoTotal + iva;
+        // Total = Subtotal (con descuento) + IVA
+        var total = subtotalConDescuento + iva;
 
         // Validar que la suma de pagos no exceda el total
         var totalPagos = dto.Pagos?.Sum(p => p.Monto) ?? 0m;
@@ -167,7 +172,8 @@ public class FacturaService
         };
 
         // Asignar totales calculados
-        factura.Subtotal = subtotal;
+        // Subtotal se guarda como el subtotal sin descuento (para referencia)
+        factura.Subtotal = subtotalSinDescuento;
         factura.Iva = iva;
         factura.Total = total;
 
@@ -211,16 +217,18 @@ public class FacturaService
         var emisorRazonSocial = _config["Sri:EmisorRazonSocial"] ?? "";
         var emisorNombreComercial = _config["Sri:EmisorNombreComercial"] ?? "";
         var dirMatriz = _config["Sri:DirMatriz"] ?? "";
-        var ambiente = _config["Sri:Ambiente"] == "1" ? "PRODUCCION" : "PRUEBAS";
+        var ambiente = _config["Sri:Ambiente"] == "1" ? "PRUEBAS" : "PRODUCCION";
         var tipoEmision = _config["Sri:TipoEmision"] == "1" ? "NORMAL" : "CONTINGENCIA";
 
         // Calcular subtotales por tarifa de IVA
+        // Subtotal 15% (12% en el nombre pero es 15% IVA en Ecuador): Precio * Cantidad - Descuento
         var subtotal15 = factura.Detalles.Where(d => d.IvaLinea > 0 && d.PrecioUnitario > 0)
-            .Sum(d => (d.PrecioUnitario * d.Cantidad - d.Descuento));
+            .Sum(d => (d.PrecioUnitario * d.Cantidad) - d.Descuento);
         var subtotal5 = 0m;
         var subtotal0 = factura.Detalles.Where(d => d.IvaLinea == 0)
-            .Sum(d => (d.PrecioUnitario * d.Cantidad - d.Descuento));
+            .Sum(d => (d.PrecioUnitario * d.Cantidad) - d.Descuento);
         var descuentoTotal = factura.Detalles.Sum(d => d.Descuento);
+        // IVA 15% ya está calculado en IvaLinea de cada detalle
         var iva15 = factura.Iva;
         var iva5 = 0m;
 
@@ -870,9 +878,12 @@ RUC {emisorRuc}
             }).ToList()
         };
 
+        // Subtotal sin descuento (para referencia)
         factura.Subtotal = factura.Detalles.Sum(d => d.PrecioUnitario * d.Cantidad);
         factura.Iva = factura.Detalles.Sum(d => d.IvaLinea);
-        factura.Total = factura.Subtotal - factura.Detalles.Sum(d => d.Descuento) + factura.Iva;
+        // Total = Subtotal (con descuento) + IVA
+        var subtotalConDescuento = factura.Detalles.Sum(d => (d.PrecioUnitario * d.Cantidad) - d.Descuento);
+        factura.Total = subtotalConDescuento + factura.Iva;
 
         await _facturaRepo.AgregarAsync(factura);
 
@@ -1034,9 +1045,14 @@ RUC {emisorRuc}
         if (factura == null) return null;
 
         // Calcula los totales según tus reglas de negocio
-        decimal subtotal12 = factura.Detalles.Where(d => d.IvaLinea > 0).Sum(d => d.PrecioUnitario * d.Cantidad);
-        decimal subtotal0 = factura.Detalles.Where(d => d.IvaLinea == 0).Sum(d => d.PrecioUnitario * d.Cantidad);
+        // Subtotal 12% (15% IVA): Precio * Cantidad - Descuento (solo productos con IVA)
+        decimal subtotal12 = factura.Detalles.Where(d => d.IvaLinea > 0)
+            .Sum(d => (d.PrecioUnitario * d.Cantidad) - d.Descuento);
+        // Subtotal 0%: Precio * Cantidad - Descuento (solo productos sin IVA)
+        decimal subtotal0 = factura.Detalles.Where(d => d.IvaLinea == 0)
+            .Sum(d => (d.PrecioUnitario * d.Cantidad) - d.Descuento);
         decimal descuentoTotal = factura.Detalles.Sum(d => d.Descuento);
+        // IVA es 15% del subtotal después del descuento (ya calculado en IvaLinea)
         decimal iva = factura.Detalles.Sum(d => d.IvaLinea);
         decimal iceTotal = 0; // Si tienes ICE, calcula aquí
 
@@ -1063,8 +1079,12 @@ RUC {emisorRuc}
                 ProductoNombre = d.Producto?.Nombre ?? "",
                 PrecioUnitario = d.PrecioUnitario,
                 Descuento = d.Descuento,
-                Subtotal = d.Cantidad * d.PrecioUnitario - d.Descuento + d.IvaLinea,
-                DescuentoPorcentaje = 0 // Si tienes el cálculo, ponlo aquí
+                // Subtotal es Precio * Cantidad - Descuento (sin IVA)
+                Subtotal = (d.PrecioUnitario * d.Cantidad) - d.Descuento,
+                // Calcular el porcentaje de descuento: (Descuento / (Precio * Cantidad)) * 100
+                DescuentoPorcentaje = d.PrecioUnitario * d.Cantidad > 0 
+                    ? Math.Round((d.Descuento / (d.PrecioUnitario * d.Cantidad)) * 100m, 2) 
+                    : 0
             }).ToList(),
             Pagos = factura.Pagos?.OrderBy(p => p.Orden).Select(p => new PagoFacturaConsultaDto
             {
