@@ -144,8 +144,15 @@
                                     </td>
                                     <td>
                                         <input type="number" class="form-control form-control-sm text-end"
-                                               @bind="detalles[index].Cantidad" min="1"
-                                               @oninput="(e) => { detalles[index].RecalcularTotales(); }" />
+                                               value="@detalles[index].Cantidad"
+                                               @oninput="@((ChangeEventArgs e) => { 
+                                                   if (int.TryParse(e.Value?.ToString(), out int nuevaCantidad) && nuevaCantidad > 0) {
+                                                       detalles[index].Cantidad = nuevaCantidad;
+                                                       detalles[index].RecalcularTotales();
+                                                       StateHasChanged();
+                                                   }
+                                               })"
+                                               min="1" />
                                     </td>
                                     <td style="position:relative;">
                                         <input id="@($"producto-input-{index}")" 
