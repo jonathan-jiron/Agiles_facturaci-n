@@ -39,13 +39,14 @@ public class AuthStateProvider : AuthenticationStateProvider
         return new AuthenticationState(user);
     }
 
-    public async Task MarkUserAuthenticatedAsync(string token)
+    public Task MarkUserAuthenticatedAsync(string token)
     {
         var handler = new JwtSecurityTokenHandler();
         var jwt = handler.ReadJwtToken(token);
         var identity = new ClaimsIdentity(jwt.Claims, "jwt");
         var user = new ClaimsPrincipal(identity);
         NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
+        return Task.CompletedTask;
     }
 
     public Task MarkUserLoggedOutAsync()

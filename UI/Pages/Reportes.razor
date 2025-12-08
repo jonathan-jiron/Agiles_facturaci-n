@@ -1,0 +1,751 @@
+@page "/reportes"
+@* @attribute [Authorize] - Temporalmente sin auth para pruebas *@
+@layout MainLayout
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject NotificationService NotificationService
+@inject IJSRuntime JS
+@using Application.DTOs
+@using Domain.Entities
+@implements IDisposable
+
+<PageTitle>Reportes - Sistema de Facturación</PageTitle>
+
+<div class="content-area">
+    <h2 class="fw-bold text-primary mb-4">
+        <i class="fas fa-chart-bar me-2"></i>
+        Reportes y Análisis
+    </h2>
+
+    <!-- Filtros -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filtros de Búsqueda</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Fecha Inicio</label>
+                    <input type="date" class="form-control" @bind="fechaInicio" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Fecha Fin</label>
+                    <input type="date" class="form-control" @bind="fechaFin" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Cliente (Opcional)</label>
+                    <div class="input-group">
+                        <input type="text" 
+                               class="form-control" 
+                               value="@(clienteSeleccionado?.NombreRazonSocial ?? "")" 
+                               placeholder="Todos los clientes" 
+                               readonly 
+                               style="background-color: #f8f9fa;" />
+                        <button class="btn btn-outline-secondary" type="button" @onclick="AbrirModalCliente">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        @if (clienteSeleccionado != null)
+                        {
+                            <button class="btn btn-outline-danger" type="button" @onclick="LimpiarCliente">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        }
+                    </div>
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button class="btn btn-primary flex-fill" @onclick="GenerarReporte" disabled="@cargando">
+                        <i class="fas fa-search me-2"></i>Generar Reporte
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (reporte != null)
+    {
+        <!-- Botones de Exportación -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-danger" @onclick="ExportarPDF" disabled="@cargando">
+                        <i class="fas fa-file-pdf me-2"></i>Exportar PDF
+                    </button>
+                    <button class="btn btn-success" @onclick="ExportarExcel" disabled="@cargando">
+                        <i class="fas fa-file-excel me-2"></i>Exportar Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (cargando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Generando reporte...</p>
+        </div>
+    }
+    else if (reporte != null)
+    {
+        <!-- Resumen General -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="card stat-card stat-card-blue">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-1">Total Facturas</h6>
+                                <h3 class="mb-0">@reporte.TotalFacturas</h3>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-file-invoice"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card stat-card-green">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-1">Total Ventas</h6>
+                                <h3 class="mb-0">$@reporte.TotalVentas.ToString("N2")</h3>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-dollar-sign"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card stat-card-orange">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-1">Subtotal</h6>
+                                <h3 class="mb-0">$@reporte.TotalSubtotal.ToString("N2")</h3>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-calculator"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card stat-card-purple">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-1">Total IVA</h6>
+                                <h3 class="mb-0">$@reporte.TotalIva.ToString("N2")</h3>
+                            </div>
+                            <div class="stat-icon">
+                                <i class="fas fa-percent"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ventas por Día -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-calendar-day me-2"></i>Ventas por Día</h5>
+            </div>
+            <div class="card-body">
+                @if (reporte.VentasPorDia.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th class="text-end">Cantidad Facturas</th>
+                                    <th class="text-end">Total Ventas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var venta in reporte.VentasPorDia)
+                                {
+                                    <tr>
+                                        <td>@venta.Fecha.ToString("dd/MM/yyyy")</td>
+                                        <td class="text-end">@venta.CantidadFacturas</td>
+                                        <td class="text-end fw-bold text-success">$@venta.TotalVentas.ToString("N2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center">No hay datos para mostrar</p>
+                }
+            </div>
+        </div>
+
+        <!-- Ventas por Cliente -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-users me-2"></i>Ventas por Cliente</h5>
+            </div>
+            <div class="card-body">
+                @if (reporte.VentasPorCliente.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th class="text-end">Cantidad Facturas</th>
+                                    <th class="text-end">Total Ventas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var venta in reporte.VentasPorCliente)
+                                {
+                                    <tr>
+                                        <td>@venta.ClienteNombre</td>
+                                        <td class="text-end">@venta.CantidadFacturas</td>
+                                        <td class="text-end fw-bold text-success">$@venta.TotalVentas.ToString("N2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center">No hay datos para mostrar</p>
+                }
+            </div>
+        </div>
+
+        <!-- Productos Vendidos -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="fas fa-box me-2"></i>Productos Más Vendidos</h5>
+            </div>
+            <div class="card-body">
+                @if (reporte.ProductosVendidos.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Producto</th>
+                                    <th class="text-end">Cantidad Vendida</th>
+                                    <th class="text-end">Total Ventas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var producto in reporte.ProductosVendidos)
+                                {
+                                    <tr>
+                                        <td>@producto.ProductoCodigo</td>
+                                        <td>@producto.ProductoNombre</td>
+                                        <td class="text-end">@producto.CantidadVendida</td>
+                                        <td class="text-end fw-bold text-success">$@producto.TotalVentas.ToString("N2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center">No hay datos para mostrar</p>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Seleccione un rango de fechas y haga clic en "Generar Reporte" para ver los datos.
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Modal de Búsqueda de Cliente -->
+@if (mostrarModalCliente)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);" @onclick:stopPropagation="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-search me-2"></i>Buscar Cliente
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CerrarModalCliente"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <input type="text" 
+                               class="form-control" 
+                               placeholder="Buscar por nombre, RUC o cédula..." 
+                               @bind="busquedaCliente" 
+                               @bind:event="oninput"
+                               @onkeyup="OnBusquedaClienteChanged" />
+                        @if (buscandoCliente)
+                        {
+                            <small class="text-muted">
+                                <i class="fas fa-spinner fa-spin me-1"></i>Buscando...
+                            </small>
+                        }
+                    </div>
+                    
+                    @if (buscandoCliente && !clientesBuscados.Any())
+                    {
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="mt-2 text-muted">Cargando clientes...</p>
+                        </div>
+                    }
+                    else if (clientesBuscados.Any())
+                    {
+                        <div class="mb-2">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Mostrando @clientesBuscados.Count cliente(s)@(string.IsNullOrWhiteSpace(busquedaCliente) ? " (todos)" : "")
+                            </small>
+                        </div>
+                        <div style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-hover table-sm">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Nombre / Razón Social</th>
+                                        <th>Identificación</th>
+                                        <th class="text-center" style="width: 120px;">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var cliente in clientesBuscados)
+                                    {
+                                        <tr>
+                                            <td>@cliente.NombreRazonSocial</td>
+                                            <td>@cliente.Identificacion</td>
+                                            <td class="text-center">
+                                                <button class="btn btn-sm btn-primary" @onclick="() => SeleccionarCliente(cliente)">
+                                                    <i class="fas fa-check me-1"></i>Seleccionar
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(busquedaCliente) && !buscandoCliente)
+                    {
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            No se encontraron clientes con ese criterio de búsqueda.
+                        </div>
+                    }
+                    else if (string.IsNullOrWhiteSpace(busquedaCliente) && !buscandoCliente && !clientesBuscados.Any())
+                    {
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            No hay clientes disponibles.
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CerrarModalCliente">
+                        <i class="fas fa-times me-1"></i>Cerrar
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" @onclick="LimpiarCliente">
+                        <i class="fas fa-eraser me-1"></i>Limpiar Selección
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private DateTime fechaInicio = DateTime.Now.AddMonths(-1);
+    private DateTime fechaFin = DateTime.Now;
+    private int? clienteIdSeleccionado;
+    private bool cargando = false;
+    private ReporteVentasDto? reporte;
+    
+    // Variables para modal de cliente
+    private bool mostrarModalCliente = false;
+    private string busquedaCliente = "";
+    private List<Cliente> clientesBuscados = new();
+    private Cliente? clienteSeleccionado;
+    private bool buscandoCliente = false;
+    private System.Threading.Timer? debounceTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // No cargar clientes al inicio
+    }
+
+    private async Task GenerarReporte()
+    {
+        if (fechaInicio > fechaFin)
+        {
+            NotificationService.ShowError("La fecha de inicio no puede ser mayor a la fecha fin.");
+            return;
+        }
+
+        cargando = true;
+        try
+        {
+            var request = new ReporteRequestDto
+            {
+                FechaInicio = fechaInicio,
+                FechaFin = fechaFin,
+                ClienteId = clienteIdSeleccionado
+            };
+
+            var response = await Http.PostAsJsonAsync("api/reportes/ventas", request);
+            if (response.IsSuccessStatusCode)
+            {
+                reporte = await response.Content.ReadFromJsonAsync<ReporteVentasDto>();
+                NotificationService.ShowSuccess("Reporte generado correctamente.");
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                NotificationService.ShowError($"Error al generar reporte: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Error: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task ExportarPDF()
+    {
+        if (reporte == null)
+        {
+            NotificationService.ShowError("Primero debe generar un reporte.");
+            return;
+        }
+
+        cargando = true;
+        try
+        {
+            var request = new ReporteRequestDto
+            {
+                FechaInicio = fechaInicio,
+                FechaFin = fechaFin,
+                ClienteId = clienteIdSeleccionado
+            };
+
+            var response = await Http.PostAsync("api/reportes/ventas/exportar-pdf", 
+                new StringContent(System.Text.Json.JsonSerializer.Serialize(request), 
+                System.Text.Encoding.UTF8, "application/json"));
+
+            if (response.IsSuccessStatusCode)
+            {
+                var pdfBytes = await response.Content.ReadAsByteArrayAsync();
+                var fileName = $"Reporte_Ventas_{fechaInicio:yyyyMMdd}_{fechaFin:yyyyMMdd}.pdf";
+                await JS.InvokeVoidAsync("downloadFile", fileName, Convert.ToBase64String(pdfBytes), "application/pdf");
+                NotificationService.ShowSuccess("PDF exportado correctamente.");
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                NotificationService.ShowError($"Error al exportar PDF: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Error: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task ExportarExcel()
+    {
+        if (reporte == null)
+        {
+            NotificationService.ShowError("Primero debe generar un reporte.");
+            return;
+        }
+
+        cargando = true;
+        try
+        {
+            var request = new ReporteRequestDto
+            {
+                FechaInicio = fechaInicio,
+                FechaFin = fechaFin,
+                ClienteId = clienteIdSeleccionado
+            };
+
+            var response = await Http.PostAsync("api/reportes/ventas/exportar-excel",
+                new StringContent(System.Text.Json.JsonSerializer.Serialize(request),
+                System.Text.Encoding.UTF8, "application/json"));
+
+            if (response.IsSuccessStatusCode)
+            {
+                var excelBytes = await response.Content.ReadAsByteArrayAsync();
+                var fileName = $"Reporte_Ventas_{fechaInicio:yyyyMMdd}_{fechaFin:yyyyMMdd}.xlsx";
+                await JS.InvokeVoidAsync("downloadFile", fileName, Convert.ToBase64String(excelBytes), 
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                NotificationService.ShowSuccess("Excel exportado correctamente.");
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                NotificationService.ShowError($"Error al exportar Excel: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Error: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task AbrirModalCliente()
+    {
+        mostrarModalCliente = true;
+        busquedaCliente = "";
+        buscandoCliente = true;
+        
+        // Cargar todos los clientes al abrir el modal
+        try
+        {
+            var response = await Http.GetAsync("api/clientes");
+            if (response.IsSuccessStatusCode)
+            {
+                clientesBuscados = await response.Content.ReadFromJsonAsync<List<Cliente>>() ?? new();
+            }
+            else
+            {
+                clientesBuscados = new();
+            }
+        }
+        catch
+        {
+            clientesBuscados = new();
+        }
+        finally
+        {
+            buscandoCliente = false;
+        }
+    }
+
+    private void CerrarModalCliente()
+    {
+        mostrarModalCliente = false;
+        busquedaCliente = "";
+        clientesBuscados = new();
+        buscandoCliente = false;
+    }
+
+    private void OnBusquedaClienteChanged()
+    {
+        // Debounce: esperar 300ms después de que el usuario deje de escribir
+        debounceTimer?.Dispose();
+        
+        if (string.IsNullOrWhiteSpace(busquedaCliente))
+        {
+            // Si está vacío, recargar todos los clientes
+            debounceTimer = new System.Threading.Timer(async _ =>
+            {
+                await InvokeAsync(async () =>
+                {
+                    await CargarTodosLosClientes();
+                    StateHasChanged();
+                });
+            }, null, 100, Timeout.Infinite);
+            return;
+        }
+
+        // Si tiene texto, buscar con el endpoint de búsqueda
+        debounceTimer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                await BuscarClientes();
+                StateHasChanged();
+            });
+        }, null, 300, Timeout.Infinite);
+    }
+
+    private async Task CargarTodosLosClientes()
+    {
+        buscandoCliente = true;
+        try
+        {
+            var response = await Http.GetAsync("api/clientes");
+            if (response.IsSuccessStatusCode)
+            {
+                clientesBuscados = await response.Content.ReadFromJsonAsync<List<Cliente>>() ?? new();
+            }
+            else
+            {
+                clientesBuscados = new();
+            }
+        }
+        catch
+        {
+            clientesBuscados = new();
+        }
+        finally
+        {
+            buscandoCliente = false;
+        }
+    }
+
+    private async Task BuscarClientes()
+    {
+        if (string.IsNullOrWhiteSpace(busquedaCliente))
+        {
+            await CargarTodosLosClientes();
+            return;
+        }
+
+        buscandoCliente = true;
+        try
+        {
+            var response = await Http.GetAsync($"api/clientes/search?search={Uri.EscapeDataString(busquedaCliente)}");
+            if (response.IsSuccessStatusCode)
+            {
+                clientesBuscados = await response.Content.ReadFromJsonAsync<List<Cliente>>() ?? new();
+            }
+            else
+            {
+                clientesBuscados = new();
+            }
+        }
+        catch
+        {
+            clientesBuscados = new();
+        }
+        finally
+        {
+            buscandoCliente = false;
+        }
+    }
+
+    private void SeleccionarCliente(Cliente cliente)
+    {
+        clienteSeleccionado = cliente;
+        clienteIdSeleccionado = cliente.Id;
+        CerrarModalCliente();
+        NotificationService.ShowSuccess($"Cliente seleccionado: {cliente.NombreRazonSocial}");
+    }
+
+    private void LimpiarCliente()
+    {
+        clienteSeleccionado = null;
+        clienteIdSeleccionado = null;
+        if (mostrarModalCliente)
+        {
+            CerrarModalCliente();
+        }
+        NotificationService.ShowInfo("Filtro de cliente eliminado. Se mostrarán todos los clientes.");
+    }
+
+    public void Dispose()
+    {
+        debounceTimer?.Dispose();
+    }
+}
+
+<style>
+    /* Asegurar que el contenido no expanda el contenedor */
+    .content-area {
+        max-width: 1250px !important;
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+
+    .content-area.ampliado {
+        max-width: 2200px !important;
+    }
+
+    .card {
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .table-responsive {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    /* Asegurar que el alert ocupe el ancho completo */
+    .alert {
+        max-width: 100%;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .stat-card {
+        border-left: 4px solid;
+        transition: transform 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .stat-card-blue {
+        border-left-color: #667eea;
+    }
+
+    .stat-card-green {
+        border-left-color: #48bb78;
+    }
+
+    .stat-card-orange {
+        border-left-color: #f6ad55;
+    }
+
+    .stat-card-purple {
+        border-left-color: #9f7aea;
+    }
+
+    .stat-icon {
+        font-size: 2.5rem;
+        opacity: 0.2;
+    }
+
+    .stat-card-blue .stat-icon {
+        color: #667eea;
+    }
+
+    .stat-card-green .stat-icon {
+        color: #48bb78;
+    }
+
+    .stat-card-orange .stat-icon {
+        color: #f6ad55;
+    }
+
+    .stat-card-purple .stat-icon {
+        color: #9f7aea;
+    }
+</style>
+

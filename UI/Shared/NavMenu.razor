@@ -1,21 +1,32 @@
 @namespace UI.Shared
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Routing
+@inject UI.Services.AuthService AuthService
+@inject NavigationManager Navigation
 
 @code {
     [Parameter] public bool Minimizado { get; set; }
+
+    private async Task CerrarSesion()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
 }
 
 <nav class="sidenav">
     <div class="brand">
-        <div class="logo">FZ</div>
+        <div class="logo">
+            <img src="/img/logo.png" alt="Logo" class="logo-img" />
+        </div>
         @if (!Minimizado)
         {
-            <span class="title">Facturación</span>
+            <span class="title">REDROBAN S.A. </span>
+            <span class="title">Facturación Electrónica</span>
         }
     </div>
     <div class="menu-icons @(Minimizado ? "minimizado" : "")">
-        <ul class="nav flex-column">
+        <ul class="nav flex-column menu-list">
             <li class="nav-item">
                 <NavLink class="nav-link menu-link" href="/" Match="NavLinkMatch.All">
                     <i class="fa-solid fa-gauge"></i>
@@ -46,7 +57,19 @@
                     @if (!Minimizado) { <span class="menu-text">Mis Facturas</span> }
                 </NavLink>
             </li>
+            <li class="nav-item">
+                <NavLink class="nav-link menu-link" href="/reportes" Match="NavLinkMatch.Prefix">
+                    <i class="fa-solid fa-chart-bar"></i>
+                    @if (!Minimizado) { <span class="menu-text">Reportes</span> }
+                </NavLink>
+            </li>
         </ul>
+    </div>
+    <div class="logout-section">
+        <button class="nav-link menu-link logout-btn" @onclick="CerrarSesion">
+            <i class="fa-solid fa-sign-out-alt"></i>
+            @if (!Minimizado) { <span class="menu-text">Cerrar Sesión</span> }
+        </button>
     </div>
     <div class="footer">
         <small>v1.0</small>
@@ -70,10 +93,7 @@
 }
 
 .logo {
-    background: rgba(255,255,255,0.2);
-    color: #fff;
-    font-weight: bold;
-    font-size: 1.3rem;
+    background: white;
     border-radius: 50%;
     width: 40px;
     height: 40px;
@@ -81,6 +101,16 @@
     align-items: center;
     justify-content: center;
     margin-bottom: 8px;
+    overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    flex-shrink: 0;
+}
+
+.logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
 }
 
 .title {
@@ -94,6 +124,18 @@
     margin-top: 0;
     margin-bottom: auto;
     width: 100%;
+    padding: 0 12px;
+}
+
+.menu-list {
+    padding-left: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.menu-list .nav-item {
+    padding: 0;
+    margin: 0;
 }
 .menu-icons.minimizado {
     display: flex;
@@ -105,8 +147,8 @@
     font-weight: 500;
     font-size: 1.08rem;
     border-radius: 8px;
-    padding: 12px 18px;
-    margin: 16px 0;
+    padding: 12px 18px 12px 20px;
+    margin: 8px 0;
     display: flex;
     align-items: center;
     transition: background 0.2s, color 0.2s;
@@ -121,8 +163,8 @@
     justify-content: center;
     align-items: center;
     width: 100%;
-    padding: 0;
-    margin: 16px 0;
+    padding: 12px 0;
+    margin: 8px 0;
     background: none;
 }
 
@@ -137,6 +179,9 @@
     border-radius: 50%;
     padding: 12px;
     transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .menu-link:hover, .menu-link.active {
@@ -147,14 +192,95 @@
     background: rgba(255,255,255,0.32);
     color: #fff !important;
 }
+.menu-link {
+    text-decoration: none !important;
+}
 .menu-link i {
     font-size: 1.2rem;
     color: #fff;
     margin-right: 8px;
+    text-decoration: none !important;
+    display: inline-block;
 }
 .menu-text {
     margin-left: 8px;
+    text-decoration: none;
 }
+.menu-link:hover {
+    text-decoration: none !important;
+}
+.menu-link:hover .menu-text {
+    text-decoration: underline;
+}
+.menu-link:hover i {
+    text-decoration: none !important;
+    display: inline-block;
+}
+
+.logout-section {
+    margin-top: auto;
+    padding: 16px 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.logout-btn {
+    background: none !important;
+    border: none;
+    cursor: pointer;
+    color: #f8f9fa !important;
+    font-weight: 500;
+    font-size: 1.08rem;
+    border-radius: 8px;
+    padding: 12px 18px 12px 20px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    transition: background 0.2s, color 0.2s;
+    text-align: left;
+    justify-content: flex-start;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.menu-icons.minimizado ~ .logout-section .logout-btn {
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 12px 0;
+    margin: 8px 0;
+    background: none;
+}
+
+.menu-icons.minimizado ~ .logout-section .logout-btn:hover {
+    background: none;
+}
+
+.menu-icons.minimizado ~ .logout-section .logout-btn:hover i {
+    background: rgba(255,255,255,0.18);
+    border-radius: 50%;
+    padding: 12px;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logout-btn:hover {
+    background: rgba(255,255,255,0.18) !important;
+    color: #fff !important;
+}
+
+.logout-btn i {
+    font-size: 1.2rem;
+    color: #fff;
+    margin-right: 8px;
+}
+
+.menu-icons.minimizado ~ .logout-section .logout-btn i {
+    margin-left: 0px;
+    margin-right: 0;
+}
+
 .footer {
     margin-top: 32px;
     color: #fff;
@@ -170,7 +296,7 @@
     justify-content: center;
     align-items: center;
     padding: 0;
-    margin: 0 0 18px 0; /* solo margen inferior si lo necesitas */
+    margin: 0 0 18px 0; 
 }
 .sidebar-modern.minimizado .toggle-btn {
     margin: 0;
@@ -185,16 +311,6 @@
     margin-bottom: 18px;
 }
 
-.menu-link,
-.menu-icons.minimizado .menu-link {
-    margin: 16px 0;
-    padding: 12px 0;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-sizing: border-box;
-}
 
 .toggle-btn-container {
     padding-top: 16px;

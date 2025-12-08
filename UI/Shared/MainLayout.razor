@@ -1,10 +1,31 @@
 @* filepath: c:\MasterFacturacion\Agiles_facturaci-n\UI\Shared\MainLayout.razor *@
 @namespace UI.Shared
 @inherits LayoutComponentBase
+@inject UI.Services.AuthService AuthService
+@inject NavigationManager Navigation
 
 @code {
     private bool menuMinimizado = false;
     private void ToggleMenu() => menuMinimizado = !menuMinimizado;
+    
+    private bool mostrarMenuPerfil = false;
+    private UI.Services.UsuarioInfo? usuarioActual;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        usuarioActual = await AuthService.GetCurrentUser();
+    }
+    
+    private void ToggleMenuPerfil()
+    {
+        mostrarMenuPerfil = !mostrarMenuPerfil;
+    }
+    
+    private async Task CerrarSesion()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("/login", forceLoad: true);
+    }
 }
 
 <div class="page-wrapper">
@@ -17,6 +38,33 @@
         <NavMenu Minimizado="menuMinimizado" />
     </div>
     <div class="main-content @(menuMinimizado ? "expandido" : "")">
+        <div class="topbar">
+            <div class="profile-menu-container">
+                <button class="profile-btn" @onclick="ToggleMenuPerfil" @onclick:stopPropagation="true">
+                    <i class="fa-solid fa-user-circle"></i>
+                </button>
+                @if (mostrarMenuPerfil)
+                {
+                    <div class="profile-dropdown" @onclick:stopPropagation="true">
+                        <div class="profile-dropdown-header">
+                            <i class="fa-solid fa-user"></i>
+                            <div class="profile-info">
+                                <div class="profile-name">@(usuarioActual?.Username ?? "Usuario")</div>
+                                @if (!string.IsNullOrWhiteSpace(usuarioActual?.Rol))
+                                {
+                                    <div class="profile-role">@usuarioActual.Rol</div>
+                                }
+                            </div>
+                        </div>
+                        <div class="profile-dropdown-divider"></div>
+                        <button class="profile-dropdown-item" @onclick="CerrarSesion">
+                            <i class="fa-solid fa-sign-out-alt"></i>
+                            <span>Cerrar Sesión</span>
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
         <div class="content-area @(menuMinimizado ? "ampliado" : "")">
             @Body
         </div>
@@ -89,7 +137,134 @@
         transition: margin-left 0.2s;
         display: flex;
         flex-direction: column;
+        justify-content: flex-start;
+        position: relative;
+    }
+    
+    .topbar {
+        position: fixed;
+        top: 0;
+        right: 0;
+        z-index: 1000;
+        background: transparent;
+        padding: 16px 24px;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        pointer-events: none;
+    }
+    
+    .profile-menu-container {
+        position: relative;
+        pointer-events: auto;
+    }
+    
+    .profile-btn {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        border: none;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
         justify-content: center;
+        font-size: 1.5rem;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+    
+    .profile-btn:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .profile-dropdown {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        min-width: 220px;
+        overflow: hidden;
+        animation: slideDown 0.2s ease-out;
+    }
+    
+    @@keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .profile-dropdown-header {
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    }
+    
+    .profile-dropdown-header i {
+        font-size: 2rem;
+        color: #667eea;
+    }
+    
+    .profile-info {
+        flex: 1;
+    }
+    
+    .profile-name {
+        font-weight: 600;
+        color: #2d3748;
+        font-size: 0.95rem;
+        margin-bottom: 2px;
+    }
+    
+    .profile-role {
+        font-size: 0.8rem;
+        color: #718096;
+        text-transform: capitalize;
+    }
+    
+    .profile-dropdown-divider {
+        height: 1px;
+        background: #e2e8f0;
+        margin: 4px 0;
+    }
+    
+    .profile-dropdown-item {
+        width: 100%;
+        padding: 12px 16px;
+        border: none;
+        background: none;
+        text-align: left;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #2d3748;
+        font-size: 0.9rem;
+        transition: background 0.2s;
+    }
+    
+    .profile-dropdown-item:hover {
+        background: #f7fafc;
+    }
+    
+    .profile-dropdown-item i {
+        color: #e53e3e;
+        width: 18px;
+    }
+    
+    .profile-dropdown-item span {
+        flex: 1;
     }
 
     .sidebar-modern::-webkit-scrollbar {
@@ -111,5 +286,33 @@
 
     .login-page {
         background: #f0f2f5;
+    }
+    
+    @@media (max-width: 768px) {
+        .profile-dropdown {
+            min-width: 200px;
+        }
+        
+        .topbar {
+            padding: 12px 16px;
+        }
+    }
+</style>
+
+@* Overlay para cerrar el menú al hacer clic fuera *@
+@if (mostrarMenuPerfil)
+{
+    <div class="profile-overlay" @onclick="() => mostrarMenuPerfil = false"></div>
+}
+
+<style>
+    .profile-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 999;
+        background: transparent;
     }
 </style>
