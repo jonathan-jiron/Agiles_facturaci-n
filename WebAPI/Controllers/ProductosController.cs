@@ -116,38 +116,170 @@ namespace WebAPI.Controllers
         [HttpPut("{id:int}")]
         public async Task<ActionResult> Put(int id, [FromBody] ProductoCreateDto dto)
         {
-            var prod = await _db.Productos.Include(p => p.Lotes).FirstOrDefaultAsync(p => p.Id == id);
-            if (prod is null) return NotFound();
-
-            prod.Codigo = dto.Codigo;
-            prod.Nombre = dto.Nombre;
-            prod.Descripcion = dto.Descripcion;
-            prod.PrecioVenta = dto.PrecioVenta;
-            prod.AplicaIva = dto.AplicaIva;
-
-            // Reemplazar lotes (simple y seguro)
-            _db.Lotes.RemoveRange(prod.Lotes);
-            prod.Lotes = dto.Lotes?.Select(l => new Lote
+            try
             {
-                NumeroLote = l.NumeroLote,
-                Cantidad = l.Cantidad,
-                PrecioUnitario = l.PrecioUnitario
-            }).ToList() ?? new();
+                var prod = await _db.Productos.Include(p => p.Lotes).FirstOrDefaultAsync(p => p.Id == id);
+                if (prod is null) return NotFound(new { error = "Producto no encontrado" });
 
-            await _db.SaveChangesAsync();
+                // Validar que haya al menos un lote
+                if (dto.Lotes == null || !dto.Lotes.Any())
+                {
+                    return BadRequest(new { error = "Debe haber al menos un lote para el producto" });
+                }
 
-            // Registrar evento
-            _db.EventosActividad.Add(new EventoActividad
+                // Validar números de lote únicos en el DTO
+                var numerosLoteDuplicados = dto.Lotes
+                    .GroupBy(l => l.NumeroLote)
+                    .Where(g => g.Count() > 1)
+                    .Select(g => g.Key)
+                    .ToList();
+                
+                if (numerosLoteDuplicados.Any())
+                {
+                    return BadRequest(new { error = $"Hay números de lote duplicados: {string.Join(", ", numerosLoteDuplicados)}" });
+                }
+
+                prod.Codigo = dto.Codigo;
+                prod.Nombre = dto.Nombre;
+                prod.Descripcion = dto.Descripcion;
+                prod.PrecioVenta = dto.PrecioVenta;
+                prod.AplicaIva = dto.AplicaIva;
+
+                // Verificar qué lotes están siendo usados en facturas (no se pueden eliminar)
+                // Primero obtener los IDs de los lotes del producto en memoria
+                var idsLotesProducto = prod.Lotes.Select(l => l.Id).ToList();
+                
+                // Luego buscar en la BD qué lotes están siendo usados
+                var lotesEnUso = await _db.DetallesFactura
+                    .Where(d => d.LoteId.HasValue && idsLotesProducto.Contains(d.LoteId.Value))
+                    .Select(d => d.LoteId.Value)
+                    .Distinct()
+                    .ToListAsync();
+
+                // Obtener números de lote que vienen del DTO
+                var numerosLoteNuevos = dto.Lotes.Select(l => l.NumeroLote).ToList();
+
+                // PRIMERO: Eliminar solo los lotes que NO están en uso y NO están en la lista nueva
+                // Esto debe hacerse ANTES de agregar nuevos lotes para evitar conflictos
+                var lotesAEliminar = prod.Lotes
+                    .Where(l => !lotesEnUso.Contains(l.Id) && !numerosLoteNuevos.Contains(l.NumeroLote))
+                    .ToList();
+                
+                // Guardar los IDs de los lotes que vamos a eliminar para evitar conflictos
+                var idsAEliminar = lotesAEliminar.Select(l => l.Id).ToList();
+                
+                // Eliminar los lotes
+                foreach (var lote in lotesAEliminar)
+                {
+                    prod.Lotes.Remove(lote);
+                    _db.Lotes.Remove(lote);
+                }
+                
+                // Guardar cambios parciales para que los lotes eliminados ya no existan en la BD
+                await _db.SaveChangesAsync();
+
+                // SEGUNDO: Agregar o actualizar lotes nuevos
+                foreach (var loteDto in dto.Lotes)
+                {
+                    // Validar que el número de lote no esté vacío
+                    if (string.IsNullOrWhiteSpace(loteDto.NumeroLote))
+                    {
+                        return BadRequest(new { error = "El número de lote no puede estar vacío" });
+                    }
+
+                    // Buscar si ya existe un lote con este número en este producto
+                    // (después de la eliminación, solo quedan los que no eliminamos)
+                    var loteExistente = prod.Lotes
+                        .FirstOrDefault(l => l.NumeroLote == loteDto.NumeroLote && !idsAEliminar.Contains(l.Id));
+                    
+                    if (loteExistente != null)
+                    {
+                        // Actualizar lote existente (solo si no está en uso)
+                        if (!lotesEnUso.Contains(loteExistente.Id))
+                        {
+                            loteExistente.Cantidad = loteDto.Cantidad;
+                            loteExistente.PrecioUnitario = loteDto.PrecioUnitario;
+                            if (loteDto.FechaIngreso.HasValue)
+                                loteExistente.FechaIngreso = loteDto.FechaIngreso.Value;
+                            loteExistente.FechaVencimiento = loteDto.FechaVencimiento;
+                        }
+                    }
+                    else
+                    {
+                        // Verificar si el número de lote ya existe en otro producto
+                        var existeEnOtroProducto = await _db.Lotes
+                            .AnyAsync(l => l.NumeroLote == loteDto.NumeroLote && l.ProductoId != id);
+                        
+                        if (existeEnOtroProducto)
+                        {
+                            return BadRequest(new { error = $"El número de lote '{loteDto.NumeroLote}' ya existe en otro producto" });
+                        }
+
+                        // Crear nuevo lote
+                        prod.Lotes.Add(new Lote
+                        {
+                            NumeroLote = loteDto.NumeroLote,
+                            Cantidad = loteDto.Cantidad,
+                            PrecioUnitario = loteDto.PrecioUnitario,
+                            FechaIngreso = loteDto.FechaIngreso ?? DateTime.Now,
+                            FechaVencimiento = loteDto.FechaVencimiento
+                        });
+                    }
+                }
+
+                await _db.SaveChangesAsync();
+
+                // Registrar evento
+                _db.EventosActividad.Add(new EventoActividad
+                {
+                    Titulo = "Producto editado",
+                    Descripcion = $"Producto: {prod.Nombre} editado.",
+                    Icono = "fa-solid fa-box-open",
+                    Color = "#17a2b8",
+                    Fecha = DateTime.Now
+                });
+                await _db.SaveChangesAsync();
+
+                return NoContent();
+            }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
             {
-                Titulo = "Producto editado",
-                Descripcion = $"Producto: {prod.Nombre} editado.",
-                Icono = "fa-solid fa-box-open",
-                Color = "#17a2b8",
-                Fecha = DateTime.Now
-            });
-            await _db.SaveChangesAsync();
+                // Capturar errores de base de datos
+                var innerException = ex.InnerException?.Message ?? ex.Message;
+                
+                if (innerException.Contains("UNIQUE") || innerException.Contains("duplicate"))
+                {
+                    return BadRequest(new { error = "El número de lote ya existe. Debe ser único." });
+                }
+                
+                if (innerException.Contains("FOREIGN KEY") || innerException.Contains("constraint"))
+                {
+                    return BadRequest(new { error = "No se puede eliminar un lote que está siendo usado en una factura." });
+                }
 
-            return NoContent();
+                return StatusCode(500, new { error = "Error al guardar en la base de datos", details = innerException });
+            }
+            catch (Exception ex)
+            {
+                // Log del error completo para debugging
+                var errorMessage = ex.Message;
+                var stackTrace = ex.StackTrace;
+                var innerException = ex.InnerException?.Message;
+                
+                // Construir mensaje más descriptivo
+                var mensaje = $"Error interno al actualizar el producto: {errorMessage}";
+                if (!string.IsNullOrEmpty(innerException))
+                {
+                    mensaje += $" | Detalle: {innerException}";
+                }
+                
+                return StatusCode(500, new { 
+                    error = mensaje, 
+                    details = errorMessage,
+                    innerException = innerException,
+                    type = ex.GetType().Name
+                });
+            }
         }
 
         [HttpDelete("{id:int}")]
@@ -240,6 +372,7 @@ namespace WebAPI.Controllers
         public async Task<ActionResult<List<ProductoDto>>> Buscar(string query)
         {
             var productos = await _db.Productos
+                .Include(p => p.Lotes)
                 .Where(p => p.Nombre.Contains(query) || p.Codigo.Contains(query))
                 .Select(p => new ProductoDto
                 {
@@ -251,7 +384,10 @@ namespace WebAPI.Controllers
                 })
                 .ToListAsync();
 
-            return Ok(productos);
+            // Filtrar productos con stock > 0 después de cargar en memoria
+            var productosConStock = productos.Where(p => p.Stock > 0).ToList();
+
+            return Ok(productosConStock);
         }
     }
 

@@ -77,12 +77,7 @@ namespace Infrastructure.Services.Sri
                 ),
                 new XElement("importeTotal", importeTotal.ToString("0.00", CultureInfo.InvariantCulture)),
                 new XElement("moneda", "DOLAR"),
-                new XElement("pagos",
-                    new XElement("pago",
-                        new XElement("formaPago", MapFormaPago(f.FormaPago)),
-                        new XElement("total", importeTotal.ToString("0.00", CultureInfo.InvariantCulture))
-                    )
-                )
+                BuildPagos(f, importeTotal)
             );
         }
 
@@ -132,6 +127,28 @@ namespace Infrastructure.Services.Sri
                 "CONSUMIDOR_FINAL" => "07",
                 _ => "05"
             };
+        }
+
+        private XElement BuildPagos(Factura f, decimal importeTotal)
+        {
+            // Si hay pagos múltiples, usar esos
+            if (f.Pagos != null && f.Pagos.Any())
+            {
+                var pagosElementos = f.Pagos.OrderBy(p => p.Orden).Select(p => new XElement("pago",
+                    new XElement("formaPago", MapFormaPago(p.FormaPago)),
+                    new XElement("total", p.Monto.ToString("0.00", CultureInfo.InvariantCulture))
+                )).ToArray();
+                
+                return new XElement("pagos", pagosElementos);
+            }
+            
+            // Compatibilidad hacia atrás: usar FormaPago si no hay pagos
+            return new XElement("pagos",
+                new XElement("pago",
+                    new XElement("formaPago", MapFormaPago(f.FormaPago)),
+                    new XElement("total", importeTotal.ToString("0.00", CultureInfo.InvariantCulture))
+                )
+            );
         }
 
         private static string MapFormaPago(string? formaPago)
