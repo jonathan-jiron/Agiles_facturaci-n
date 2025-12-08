@@ -6,8 +6,14 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using MailKit.Net.Smtp;
+using MailKit.Security;
 using MimeKit;
 using Microsoft.Extensions.Configuration;
+using System.IO;
+using ZXing;
+using ZXing.Common;
+using System.Drawing;
+using System.Drawing.Imaging;
 
 namespace Application.Services;
 
@@ -35,9 +41,15 @@ public class FacturaService
 
     public async Task<FacturaDto> CrearFacturaAsync(FacturaCreateDto dto)
     {
-        // Genera el número de factura
-        var ultimo = await _facturaRepo.ContarAsync();
-        string numero = $"{DateTime.Now:yyyyMMdd}-{ultimo + 1:D5}";
+        // Genera el número de factura en formato SRI: Establecimiento(3) + PuntoEmision(3) + Secuencial(9)
+        // Ejemplo: 001001000000001
+        var secuencial = await _facturaRepo.ContarPorEstablecimientoPuntoEmisionAsync(
+            dto.Establecimiento, dto.PuntoEmision);
+        secuencial++; // Siguiente secuencial
+        
+        // Formato SRI con guiones para legibilidad: Estab(3)-PtoEmi(3)-Secuencial(9)
+        // Ejemplo: 001-001-000000001
+        string numero = $"{dto.Establecimiento.PadLeft(3, '0')}-{dto.PuntoEmision.PadLeft(3, '0')}-{secuencial:D9}";
 
         // Validación de stock y asignación de lotes FIFO
         foreach (var detalle in dto.Detalles)
@@ -74,6 +86,8 @@ public class FacturaService
             FormaPago = dto.FormaPago,
             Observaciones = dto.Observaciones,
             Estado = EstadoFactura.Generada,
+            // Generar secuencial SRI de 9 dígitos para uso interno
+            SecuencialSri = secuencial.ToString("D9"),
             Detalles = dto.Detalles.Select(d => new DetalleFactura
             {
                 ProductoId = d.ProductoId,
@@ -122,73 +136,392 @@ public class FacturaService
 
     public async Task<byte[]?> GenerarPDFAsync(int facturaId)
     {
-        var factura = await _facturaRepo.ObtenerPorIdAsync(facturaId);
+        var factura = await _facturaRepo.GetByIdWithDetailsAsync(facturaId);
         if (factura == null) return null;
+
+        // Obtener configuración SRI
+        var emisorRuc = _config["Sri:EmisorRuc"] ?? "";
+        var emisorRazonSocial = _config["Sri:EmisorRazonSocial"] ?? "";
+        var emisorNombreComercial = _config["Sri:EmisorNombreComercial"] ?? "";
+        var dirMatriz = _config["Sri:DirMatriz"] ?? "";
+        var ambiente = _config["Sri:Ambiente"] == "1" ? "PRODUCCION" : "PRUEBAS";
+        var tipoEmision = _config["Sri:TipoEmision"] == "1" ? "NORMAL" : "CONTINGENCIA";
+
+        // Calcular subtotales por tarifa de IVA
+        var subtotal15 = factura.Detalles.Where(d => d.IvaLinea > 0 && d.PrecioUnitario > 0)
+            .Sum(d => (d.PrecioUnitario * d.Cantidad - d.Descuento));
+        var subtotal5 = 0m;
+        var subtotal0 = factura.Detalles.Where(d => d.IvaLinea == 0)
+            .Sum(d => (d.PrecioUnitario * d.Cantidad - d.Descuento));
+        var descuentoTotal = factura.Detalles.Sum(d => d.Descuento);
+        var iva15 = factura.Iva;
+        var iva5 = 0m;
 
         var pdf = Document.Create(container =>
         {
             container.Page(page =>
             {
-                page.Margin(30);
+                page.Margin(15);
                 page.Size(PageSizes.A4);
-                page.Header().Text($"Factura Electrónica #{factura.Numero}").FontSize(20).Bold();
-                page.Content().Column(col =>
-                {
-                    col.Item().Text($"Fecha: {factura.Fecha:dd/MM/yyyy}");
-                    col.Item().Text($"Cliente: {factura.Cliente?.NombreRazonSocial} ({factura.Cliente?.Identificacion})");
-                    col.Item().Text($"Dirección: {factura.Cliente?.Direccion}");
-                    col.Item().Text($"Email: {factura.Cliente?.Email}");
-                    col.Item().Text($"Forma de Pago: {factura.FormaPago}");
-                    col.Item().Text($"Observaciones: {factura.Observaciones}");
+                page.DefaultTextStyle(TextStyle.Default.FontSize(10));
 
-                    col.Item().Table(table =>
+                // Header con dos columnas: Emisor (izq) y Autorización (der)
+                page.Header().Row(row =>
+                {
+                    // Columna izquierda: Logo y datos del emisor
+                    row.RelativeItem().Column(col =>
+                    {
+                        // Logo
+                        col.Item().PaddingBottom(5).Row(logoRow =>
+                        {
+                            // Intentar cargar el logo desde diferentes ubicaciones
+                            var logoPath = GetLogoPath();
+                            if (!string.IsNullOrEmpty(logoPath) && File.Exists(logoPath))
+                            {
+                                logoRow.ConstantItem(80).Height(80)
+                                    .Image(logoPath)
+                                    .FitArea();
+                            }
+                            else
+                            {
+                                // Fallback: logo estilizado si no se encuentra la imagen
+                                logoRow.ConstantItem(80).Height(80)
+                                    .Background(Colors.Blue.Medium)
+                                    .AlignCenter()
+                                    .AlignMiddle()
+                                    .Text("R\nSA")
+                                    .FontSize(24)
+                                    .Bold()
+                                    .FontColor(Colors.White);
+                            }
+                            logoRow.RelativeItem().PaddingLeft(10).Column(logoCol =>
+                            {
+                                logoCol.Item().Text(emisorNombreComercial).FontSize(14).Bold();
+                                logoCol.Item().Text("Facturación Electrónica").FontSize(10).FontColor(Colors.Grey.Medium);
+                            });
+                        });
+
+                        // Datos del emisor
+                        col.Item().PaddingTop(5).Column(emisorCol =>
+                        {
+                            emisorCol.Item().Text($"Emisor: {emisorRazonSocial}").Bold().FontSize(10);
+                            emisorCol.Item().Text($"RUC: {emisorRuc}").FontSize(10);
+                            emisorCol.Item().Text($"Matriz: {dirMatriz}").FontSize(10);
+                            emisorCol.Item().Text($"Obligado a llevar contabilidad: SI").FontSize(10);
+                        });
+                    });
+
+                    // Columna derecha: Información de autorización con fondo gris claro
+                    row.ConstantItem(300).Background(Colors.Grey.Lighten4).Padding(12).Column(authCol =>
+                    {
+                        authCol.Item().Text("FACTURA").FontSize(20).Bold().AlignRight();
+                        authCol.Item().Text($"No. {factura.Numero}").FontSize(13).Bold().AlignRight();
+                        
+                        if (!string.IsNullOrWhiteSpace(factura.NumeroAutorizacion))
+                        {
+                            authCol.Item().PaddingTop(5).Text($"Número de Autorización:").FontSize(9).AlignRight();
+                            authCol.Item().Text(factura.NumeroAutorizacion).FontSize(8).AlignRight();
+                        }
+                        
+                        if (factura.FechaAutorizacion.HasValue)
+                        {
+                            authCol.Item().Text($"Fecha y hora de Autorización:").FontSize(9).AlignRight();
+                            authCol.Item().Text(factura.FechaAutorizacion.Value.ToString("dd/MM/yyyy HH:mm:ss")).FontSize(9).AlignRight();
+                        }
+                        
+                        authCol.Item().Text($"Ambiente: {ambiente}").FontSize(9).AlignRight();
+                        authCol.Item().Text($"Emisión: {tipoEmision}").FontSize(9).AlignRight();
+                        
+                        if (!string.IsNullOrWhiteSpace(factura.ClaveAcceso))
+                        {
+                            authCol.Item().PaddingTop(5).Text($"Clave de Acceso:").FontSize(9).AlignRight();
+                            
+                            // Generar código de barras
+                            var barcodeBytes = GenerateBarcode(factura.ClaveAcceso);
+                            if (barcodeBytes != null)
+                            {
+                                authCol.Item().PaddingTop(3).AlignRight().Image(barcodeBytes).FitArea();
+                            }
+                            
+                            authCol.Item().PaddingTop(3).Text(factura.ClaveAcceso).FontSize(8).AlignRight();
+                        }
+                    });
+                });
+
+                page.Content().Column(contentCol =>
+                {
+                    // Información del comprador
+                    contentCol.Item().PaddingTop(8).PaddingBottom(8).BorderBottom(1).BorderColor(Colors.Grey.Lighten1).Column(compradorCol =>
+                    {
+                        compradorCol.Item().Text("Razón Social:").FontSize(9).FontColor(Colors.Grey.Medium);
+                        compradorCol.Item().Text(factura.Cliente?.NombreRazonSocial ?? "").FontSize(10).Bold();
+                        compradorCol.Item().Row(compradorRow =>
+                        {
+                            compradorRow.RelativeItem().Column(compradorLeft =>
+                            {
+                                if (!string.IsNullOrWhiteSpace(factura.Cliente?.Direccion))
+                                    compradorLeft.Item().Text($"Dirección: {factura.Cliente.Direccion}").FontSize(9);
+                                compradorLeft.Item().Text($"Fecha Emisión: {factura.Fecha:dd/MM/yyyy}").FontSize(9);
+                            });
+                            compradorRow.RelativeItem().Column(compradorRight =>
+                            {
+                                compradorRight.Item().Text($"RUC/CI: {factura.Cliente?.Identificacion ?? ""}").FontSize(9);
+                                if (!string.IsNullOrWhiteSpace(factura.Cliente?.Telefono))
+                                    compradorRight.Item().Text($"Teléfono: {factura.Cliente.Telefono}").FontSize(9);
+                                if (!string.IsNullOrWhiteSpace(factura.Cliente?.Email))
+                                    compradorRight.Item().Text($"Correo: {factura.Cliente.Email}").FontSize(9);
+                            });
+                        });
+                    });
+
+                    // Tabla de productos
+                    contentCol.Item().PaddingTop(6).Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
                         {
-                            columns.RelativeColumn();
-                            columns.ConstantColumn(60);
-                            columns.ConstantColumn(80);
-                            columns.ConstantColumn(80);
-                            columns.ConstantColumn(80);
+                            columns.ConstantColumn(90);  // Código Principal
+                            columns.ConstantColumn(60);  // Cantidad
+                            columns.RelativeColumn(2);     // Descripción (más ancha)
+                            columns.RelativeColumn(1.5f);  // Detalles Adicionales
+                            columns.ConstantColumn(75);  // Precio Unitario
+                            columns.ConstantColumn(65);   // Descuento
+                            columns.ConstantColumn(75);   // Total
                         });
 
+                        // Header de la tabla sin fondo, solo texto en negrita (más grande)
                         table.Header(header =>
                         {
-                            header.Cell().Text("Producto").Bold();
-                            header.Cell().Text("Cant.").Bold();
-                            header.Cell().Text("P.Unit").Bold();
-                            header.Cell().Text("Desc.").Bold();
-                            header.Cell().Text("Total").Bold();
+                            header.Cell().Element(HeaderCellStyle).Text("Código Principal").Bold().FontSize(11).FontColor(Colors.Black);
+                            header.Cell().Element(HeaderCellStyle).Text("Cantidad").Bold().FontSize(11).FontColor(Colors.Black);
+                            header.Cell().Element(HeaderCellStyle).Text("Descripción").Bold().FontSize(11).FontColor(Colors.Black);
+                            header.Cell().Element(HeaderCellStyle).Text("Detalles Adicionales").Bold().FontSize(11).FontColor(Colors.Black);
+                            header.Cell().Element(HeaderCellStyle).AlignRight().Text("Precio Unitario").Bold().FontSize(11).FontColor(Colors.Black);
+                            header.Cell().Element(HeaderCellStyle).AlignRight().Text("Descuento").Bold().FontSize(11).FontColor(Colors.Black);
+                            header.Cell().Element(HeaderCellStyle).AlignRight().Text("Total").Bold().FontSize(11).FontColor(Colors.Black);
                         });
 
+                        // Filas de productos
                         foreach (var d in factura.Detalles)
                         {
-                            table.Cell().Text(d.Producto?.Nombre ?? "Producto");
-                            table.Cell().Text(d.Cantidad.ToString());
-                            table.Cell().Text($"${d.PrecioUnitario:N2}");
-                            table.Cell().Text($"${d.Descuento:N2}");
-                            table.Cell().Text($"${(d.PrecioUnitario * d.Cantidad - d.Descuento + d.IvaLinea):N2}");
+                            // Usar el campo Codigo del producto, no el ID
+                            var codigoPrincipal = !string.IsNullOrWhiteSpace(d.Producto?.Codigo) 
+                                ? d.Producto.Codigo 
+                                : (d.ProductoId > 0 ? d.ProductoId.ToString() : "");
+                            var descripcion = d.Producto?.Nombre ?? "Producto";
+                            // Detalles Adicionales siempre vacío en la tabla
+                            var totalLinea = (d.PrecioUnitario * d.Cantidad - d.Descuento + d.IvaLinea);
+
+                            table.Cell().Element(CellStyle).Text(codigoPrincipal).FontSize(9);
+                            table.Cell().Element(CellStyle).AlignRight().Text(d.Cantidad.ToString("N2")).FontSize(9);
+                            table.Cell().Element(CellStyle).Text(descripcion).FontSize(9);
+                            table.Cell().Element(CellStyle).Text("").FontSize(9); // Detalles Adicionales vacío
+                            table.Cell().Element(CellStyle).AlignRight().Text($"${d.PrecioUnitario:N2}").FontSize(9);
+                            table.Cell().Element(CellStyle).AlignRight().Text($"${d.Descuento:N2}").FontSize(9);
+                            table.Cell().Element(CellStyle).AlignRight().Text($"${totalLinea:N2}").FontSize(9);
                         }
                     });
 
-                    col.Item().Text($"Subtotal: ${factura.Subtotal:N2}");
-                    col.Item().Text($"IVA: ${factura.Iva:N2}");
-                    col.Item().Text($"Total: ${factura.Total:N2}").Bold();
+                    // Información Adicional y Formas de pago (debajo de la tabla)
+                    contentCol.Item().PaddingTop(8).Row(infoRow =>
+                    {
+                        infoRow.RelativeItem().Column(infoCol =>
+                        {
+                            // Información Adicional
+                            if (!string.IsNullOrWhiteSpace(factura.Observaciones))
+                            {
+                                infoCol.Item().Text("Información Adicional").FontSize(10).Bold();
+                                infoCol.Item().PaddingTop(2).Text($"Descripción: {factura.Observaciones}").FontSize(9);
+                            }
+                            
+                            // Formas de pago
+                            if (!string.IsNullOrWhiteSpace(factura.FormaPago))
+                            {
+                                infoCol.Item().PaddingTop(6).Text("Formas de pago").FontSize(10).Bold();
+                                infoCol.Item().PaddingTop(2).Text($"{factura.FormaPago}: ${factura.Total:N2}").FontSize(9);
+                                // Términos de pago (si aplica)
+                                infoCol.Item().Text("0 días").FontSize(9);
+                            }
+                        });
+                        infoRow.RelativeItem(); // Espacio vacío para alinear con el resumen
+                    });
+
+                    // Resumen de totales con fondo gris claro
+                    contentCol.Item().PaddingTop(8).Row(totalesRow =>
+                    {
+                        totalesRow.RelativeItem(); // Espacio vacío
+                        totalesRow.ConstantItem(220).Background(Colors.Grey.Lighten4).Padding(12).Column(totalesCol =>
+                        {
+                            totalesCol.Item().Row(subtotalRow =>
+                            {
+                                subtotalRow.RelativeItem().Text("Subtotal Sin Impuestos:").FontSize(9);
+                                subtotalRow.ConstantItem(90).AlignRight().Text($"${factura.Subtotal:N2}").FontSize(9);
+                            });
+                            totalesCol.Item().Row(subtotal15Row =>
+                            {
+                                subtotal15Row.RelativeItem().Text("Subtotal 15%:").FontSize(9);
+                                subtotal15Row.ConstantItem(90).AlignRight().Text($"${subtotal15:N2}").FontSize(9);
+                            });
+                            totalesCol.Item().Row(subtotal5Row =>
+                            {
+                                subtotal5Row.RelativeItem().Text("Subtotal 5%:").FontSize(9);
+                                subtotal5Row.ConstantItem(90).AlignRight().Text($"${subtotal5:N2}").FontSize(9);
+                            });
+                            totalesCol.Item().Row(subtotal0Row =>
+                            {
+                                subtotal0Row.RelativeItem().Text("Subtotal 0%:").FontSize(9);
+                                subtotal0Row.ConstantItem(90).AlignRight().Text($"${subtotal0:N2}").FontSize(9);
+                            });
+                            totalesCol.Item().Row(subtotalNoObjRow =>
+                            {
+                                subtotalNoObjRow.RelativeItem().Text("Subtotal No Objeto IVA:").FontSize(9);
+                                subtotalNoObjRow.ConstantItem(90).AlignRight().Text("$0.00").FontSize(9);
+                            });
+                            totalesCol.Item().Row(descuentoRow =>
+                            {
+                                descuentoRow.RelativeItem().Text("Descuentos:").FontSize(9);
+                                descuentoRow.ConstantItem(90).AlignRight().Text($"${descuentoTotal:N2}").FontSize(9);
+                            });
+                            totalesCol.Item().Row(iceRow =>
+                            {
+                                iceRow.RelativeItem().Text("ICE:").FontSize(9);
+                                iceRow.ConstantItem(90).AlignRight().Text("$0.00").FontSize(9);
+                            });
+                            totalesCol.Item().Row(iva15Row =>
+                            {
+                                iva15Row.RelativeItem().Text("IVA 15%:").FontSize(9);
+                                iva15Row.ConstantItem(90).AlignRight().Text($"${iva15:N2}").FontSize(9);
+                            });
+                            totalesCol.Item().Row(iva5Row =>
+                            {
+                                iva5Row.RelativeItem().Text("IVA 5%:").FontSize(9);
+                                iva5Row.ConstantItem(90).AlignRight().Text($"${iva5:N2}").FontSize(9);
+                            });
+                            totalesCol.Item().Row(servicioRow =>
+                            {
+                                servicioRow.RelativeItem().Text("Servicio %:").FontSize(9);
+                                servicioRow.ConstantItem(90).AlignRight().Text("$0.00").FontSize(9);
+                            });
+                            totalesCol.Item().PaddingTop(6).BorderTop(1).BorderColor(Colors.Grey.Medium).Row(totalRow =>
+                            {
+                                totalRow.RelativeItem().Text("Valor Total:").FontSize(11).Bold();
+                                totalRow.ConstantItem(90).AlignRight().Text($"${factura.Total:N2}").FontSize(11).Bold();
+                            });
+                        });
+                    });
                 });
-                page.Footer().AlignCenter().Text("Factura generada electrónicamente - SRI Ecuador");
+
+                page.Footer().AlignCenter().Text("Factura generada electrónicamente - SRI Ecuador").FontSize(9).FontColor(Colors.Grey.Medium);
             });
         });
 
         return pdf.GeneratePdf();
     }
 
+    private static IContainer CellStyle(IContainer container)
+    {
+        return container
+            .Border(1)
+            .BorderColor(Colors.Grey.Lighten1)
+            .Padding(8)
+            .Background(Colors.White);
+    }
+
+    private static IContainer HeaderCellStyle(IContainer container)
+    {
+        return container
+            .Border(1)
+            .BorderColor(Colors.Grey.Lighten1)
+            .PaddingVertical(10)
+            .PaddingHorizontal(8)
+            .Background(Colors.White)
+            .AlignMiddle();
+    }
+
+    private string? GetLogoPath()
+    {
+        // Buscar el logo en diferentes ubicaciones posibles
+        var baseDir = AppContext.BaseDirectory;
+        var possiblePaths = new[]
+        {
+            Path.Combine(baseDir, "wwwroot", "img", "logo.png"),
+            Path.Combine(baseDir, "..", "..", "..", "WebAPI", "wwwroot", "img", "logo.png"),
+            Path.Combine(baseDir, "..", "..", "..", "..", "WebAPI", "wwwroot", "img", "logo.png"),
+            Path.GetFullPath(Path.Combine(baseDir, "wwwroot", "img", "logo.png")),
+            Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "WebAPI", "wwwroot", "img", "logo.png"))
+        };
+
+        foreach (var path in possiblePaths)
+        {
+            if (File.Exists(path))
+                return path;
+        }
+
+        return null;
+    }
+
+    private byte[]? GenerateBarcode(string text)
+    {
+        try
+        {
+            var writer = new BarcodeWriterPixelData
+            {
+                Format = BarcodeFormat.CODE_128,
+                Options = new EncodingOptions
+                {
+                    Height = 60,
+                    Width = 300,
+                    Margin = 2,
+                    PureBarcode = false
+                }
+            };
+
+            var pixelData = writer.Write(text);
+            
+            // Convertir a imagen PNG en memoria
+            using (var bitmap = new Bitmap(pixelData.Width, pixelData.Height, PixelFormat.Format32bppRgb))
+            {
+                var bitmapData = bitmap.LockBits(
+                    new Rectangle(0, 0, pixelData.Width, pixelData.Height),
+                    ImageLockMode.WriteOnly,
+                    PixelFormat.Format32bppRgb);
+
+                try
+                {
+                    System.Runtime.InteropServices.Marshal.Copy(pixelData.Pixels, 0, bitmapData.Scan0, pixelData.Pixels.Length);
+                }
+                finally
+                {
+                    bitmap.UnlockBits(bitmapData);
+                }
+
+                using (var ms = new MemoryStream())
+                {
+                    bitmap.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                    return ms.ToArray();
+                }
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<bool> EnviarFacturaPorEmailAsync(int facturaId)
     {
-        var factura = await _facturaRepo.ObtenerPorIdAsync(facturaId);
+        var factura = await _facturaRepo.GetByIdWithDetailsAsync(facturaId);
         if (factura == null || factura.Cliente?.Email == null) return false;
 
         var pdfBytes = await GenerarPDFAsync(facturaId);
         if (pdfBytes == null) return false;
+
+        // Obtener XML (priorizar autorizado, luego firmado, luego generado)
+        var xml = factura.XmlAutorizado ?? factura.XmlFirmado ?? factura.XmlGenerado;
+        byte[]? xmlBytes = null;
+        if (!string.IsNullOrWhiteSpace(xml))
+        {
+            xmlBytes = System.Text.Encoding.UTF8.GetBytes(xml);
+        }
 
         var message = new MimeMessage();
         var smtpServer = _config["EmailSettings:SmtpServer"];
@@ -199,24 +532,238 @@ public class FacturaService
         var fromEmail = _config["EmailSettings:FromEmail"];
         var fromName = _config["EmailSettings:FromName"];
 
-        message.From.Add(new MailboxAddress(fromName, fromEmail));
+        // Validar configuración de correo
+        if (string.IsNullOrWhiteSpace(smtpServer))
+            throw new InvalidOperationException("Configuración de correo incompleta: SmtpServer no está configurado en appsettings.json");
+        if (string.IsNullOrWhiteSpace(smtpUser))
+            throw new InvalidOperationException("Configuración de correo incompleta: SmtpUser no está configurado en appsettings.json");
+        if (string.IsNullOrWhiteSpace(smtpPass))
+            throw new InvalidOperationException("Configuración de correo incompleta: SmtpPass no está configurado en appsettings.json");
+        if (string.IsNullOrWhiteSpace(fromEmail))
+            throw new InvalidOperationException("Configuración de correo incompleta: FromEmail no está configurado en appsettings.json");
+
+        message.From.Add(new MailboxAddress(fromName ?? "Facturación Electrónica", fromEmail));
         message.To.Add(new MailboxAddress(factura.Cliente.NombreRazonSocial, factura.Cliente.Email));
         message.Subject = $"Factura Electrónica #{factura.Numero}";
 
+        // Obtener configuración para el HTML
+        var emisorRazonSocial = _config["Sri:EmisorRazonSocial"] ?? "REDROBAN S.A.";
+        var emisorRuc = _config["Sri:EmisorRuc"] ?? "";
+        var dirMatriz = _config["Sri:DirMatriz"] ?? "";
+
+        // Formatear fecha en español
+        var meses = new[] { "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
+                           "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre" };
+        var fechaFormateada = $"{meses[factura.Fecha.Month - 1]} {factura.Fecha.Day:D2}, {factura.Fecha.Year}";
+
+        // Crear HTML profesional
+        var htmlBody = $@"
+<!DOCTYPE html>
+<html lang='es'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }}
+        .container {{
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }}
+        .header {{
+            border-top: 4px solid #4A90E2;
+            padding-top: 20px;
+            margin-bottom: 20px;
+        }}
+        .logo {{
+            text-align: right;
+            margin-bottom: 20px;
+            color: #4A90E2;
+            font-weight: bold;
+            font-size: 18px;
+        }}
+        .greeting {{
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }}
+        .message {{
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 20px;
+        }}
+        .invoice-info {{
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }}
+        .invoice-info p {{
+            margin: 5px 0;
+            font-size: 14px;
+        }}
+        .invoice-number {{
+            font-weight: bold;
+            color: #2c3e50;
+        }}
+        .amount {{
+            font-size: 32px;
+            font-weight: bold;
+            color: #27ae60;
+            margin: 20px 0;
+            text-align: center;
+        }}
+        .amount-label {{
+            font-size: 14px;
+            color: #555;
+            text-align: center;
+            margin-bottom: 10px;
+        }}
+        .button-container {{
+            text-align: center;
+            margin: 30px 0;
+        }}
+        .button {{
+            display: inline-block;
+            background-color: #4A90E2;
+            color: #ffffff;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 16px;
+            margin: 10px 5px;
+        }}
+        .button:hover {{
+            background-color: #357ABD;
+        }}
+        .link {{
+            color: #4A90E2;
+            text-decoration: none;
+            font-size: 14px;
+        }}
+        .footer {{
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 12px;
+            color: #777;
+        }}
+        .footer p {{
+            margin: 5px 0;
+        }}
+        .footer-company {{
+            font-weight: bold;
+            color: #2c3e50;
+            margin-top: 10px;
+        }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <div class='logo'>{emisorRazonSocial}</div>
+            <div class='greeting'>{factura.Cliente?.NombreRazonSocial?.ToUpper() ?? ""}</div>
+            <div class='message'>
+                Has recibido una Factura de<br>
+                <strong>{emisorRazonSocial}</strong>
+            </div>
+        </div>
+
+        <div class='invoice-info'>
+            <p><span class='invoice-number'>FAC {factura.Numero}</span></p>
+            <p>{fechaFormateada}</p>
+        </div>
+
+        <div class='amount-label'>Por el valor de:</div>
+        <div class='amount'>${factura.Total:N2}</div>
+
+        <div class='button-container'>
+            <p style='font-size: 14px; color: #555; margin-bottom: 20px;'>
+                Los archivos de su factura electrónica están adjuntos a este correo.
+            </p>
+            <div style='background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;'>
+                <p style='font-size: 13px; color: #2c3e50; margin: 5px 0; font-weight: bold;'>
+                    📎 Archivos adjuntos disponibles:
+                </p>
+                <p style='font-size: 12px; color: #555; margin: 8px 0;'>
+                    📄 <strong>Factura_{factura.Numero}.pdf</strong> - Documento PDF de la factura<br>
+                    {(xmlBytes != null ? $"📄 <strong>Factura_{factura.Numero}.xml</strong> - Archivo XML electrónico<br>" : "")}
+                </p>
+                <p style='font-size: 11px; color: #777; margin-top: 10px; font-style: italic;'>
+                    Puede descargar estos archivos desde la sección de adjuntos de su cliente de correo.
+                </p>
+            </div>
+        </div>
+
+        <div class='footer'>
+            <div class='footer-company'>{emisorRazonSocial}</div>
+            <p>RUC {emisorRuc}</p>
+            <p>{dirMatriz}</p>
+            {(string.IsNullOrWhiteSpace(factura.ClaveAcceso) ? "" : $"<p style='margin-top: 10px; font-size: 11px; color: #999;'>Clave de Acceso: {factura.ClaveAcceso}</p>")}
+        </div>
+    </div>
+</body>
+</html>";
+
+        // Texto plano como alternativa
+        var textBody = $@"Estimado {factura.Cliente.NombreRazonSocial},
+
+Has recibido una Factura de {emisorRazonSocial}
+
+FAC {factura.Numero}
+{fechaFormateada}
+
+Por el valor de: ${factura.Total:N2}
+
+{(string.IsNullOrWhiteSpace(factura.ClaveAcceso) ? "" : $"Clave de Acceso: {factura.ClaveAcceso}\n")}
+
+Este correo contiene los archivos PDF y XML de su factura electrónica.
+
+{emisorRazonSocial}
+RUC {emisorRuc}
+{dirMatriz}";
+
         var builder = new BodyBuilder
         {
-            TextBody = $"Estimado {factura.Cliente.NombreRazonSocial},\nAdjunto encontrará su factura electrónica #{factura.Numero}."
+            TextBody = textBody,
+            HtmlBody = htmlBody
         };
+        
+        // Adjuntar PDF
         builder.Attachments.Add($"Factura_{factura.Numero}.pdf", pdfBytes, new ContentType("application", "pdf"));
+        
+        // Adjuntar XML si está disponible
+        if (xmlBytes != null)
+        {
+            builder.Attachments.Add($"Factura_{factura.Numero}.xml", xmlBytes, new ContentType("application", "xml"));
+        }
+        
         message.Body = builder.ToMessageBody();
 
         using var smtp = new SmtpClient();
-        await smtp.ConnectAsync(smtpServer, smtpPort, false);
-        await smtp.AuthenticateAsync(smtpUser, smtpPass);
-        await smtp.SendAsync(message);
-        await smtp.DisconnectAsync(true);
-
-        return true;
+        try
+        {
+            await smtp.ConnectAsync(smtpServer, smtpPort, MailKit.Security.SecureSocketOptions.StartTls);
+            await smtp.AuthenticateAsync(smtpUser, smtpPass);
+            await smtp.SendAsync(message);
+            await smtp.DisconnectAsync(true);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Error al enviar correo: {ex.Message}. Verifique la configuración de EmailSettings en appsettings.json", ex);
+        }
     }
 
     public async Task<FacturaDto> GuardarBorradorAsync(FacturaCreateDto dto)
@@ -288,7 +835,71 @@ public class FacturaService
         return await _facturaRepo.SumarVentasPorMesAsync(mes, año);
     }
 
-    public async Task<decimal> GetCrecimientoVentasAsync()
+
+    public async Task<int> ContarClientesUnicosPorMesAsync(int mes, int año)
+    {
+        var facturas = await _facturaRepo.ListarAsync();
+        return facturas
+            .Where(f => f.Fecha.Month == mes && f.Fecha.Year == año)
+            .Select(f => f.ClienteId)
+            .Distinct()
+            .Count();
+    }
+
+    public async Task<int> ContarProductosUnicosPorMesAsync(int mes, int año)
+    {
+        var facturas = await _facturaRepo.ListarAsync();
+        return facturas
+            .Where(f => f.Fecha.Month == mes && f.Fecha.Year == año)
+            .SelectMany(f => f.Detalles)
+            .Select(d => d.ProductoId)
+            .Distinct()
+            .Count();
+    }
+
+    public async Task<(decimal crecimiento, bool hayDatosAnterior)> GetCrecimientoClientesAsync()
+    {
+        var mesActual = DateTime.Now.Month;
+        var añoActual = DateTime.Now.Year;
+        var mesAnterior = mesActual == 1 ? 12 : mesActual - 1;
+        var añoAnterior = mesActual == 1 ? añoActual - 1 : añoActual;
+
+        var clientesActual = await ContarClientesUnicosPorMesAsync(mesActual, añoActual);
+        var clientesAnterior = await ContarClientesUnicosPorMesAsync(mesAnterior, añoAnterior);
+
+        if (clientesAnterior == 0) return (0, false);
+        return (((clientesActual - clientesAnterior) / (decimal)clientesAnterior) * 100, true);
+    }
+
+    public async Task<(decimal crecimiento, bool hayDatosAnterior)> GetCrecimientoProductosAsync()
+    {
+        var mesActual = DateTime.Now.Month;
+        var añoActual = DateTime.Now.Year;
+        var mesAnterior = mesActual == 1 ? 12 : mesActual - 1;
+        var añoAnterior = mesActual == 1 ? añoActual - 1 : añoActual;
+
+        var productosActual = await ContarProductosUnicosPorMesAsync(mesActual, añoActual);
+        var productosAnterior = await ContarProductosUnicosPorMesAsync(mesAnterior, añoAnterior);
+
+        if (productosAnterior == 0) return (0, false);
+        return (((productosActual - productosAnterior) / (decimal)productosAnterior) * 100, true);
+    }
+
+    public async Task<(decimal crecimiento, bool hayDatosAnterior)> GetCrecimientoFacturasAsync()
+    {
+        var mesActual = DateTime.Now.Month;
+        var añoActual = DateTime.Now.Year;
+        var mesAnterior = mesActual == 1 ? 12 : mesActual - 1;
+        var añoAnterior = mesActual == 1 ? añoActual - 1 : añoActual;
+
+        var facturasActual = await _facturaRepo.ContarPorMesAsync(mesActual, añoActual);
+        var facturasAnterior = await _facturaRepo.ContarPorMesAsync(mesAnterior, añoAnterior);
+
+        if (facturasAnterior == 0) return (0, false);
+        return (((facturasActual - facturasAnterior) / (decimal)facturasAnterior) * 100, true);
+    }
+
+    public async Task<(decimal crecimiento, bool hayDatosAnterior)> GetCrecimientoVentasAsync()
     {
         var mesActual = DateTime.Now.Month;
         var añoActual = DateTime.Now.Year;
@@ -298,8 +909,8 @@ public class FacturaService
         var ventasActual = await _facturaRepo.SumarVentasPorMesAsync(mesActual, añoActual);
         var ventasAnterior = await _facturaRepo.SumarVentasPorMesAsync(mesAnterior, añoAnterior);
 
-        if (ventasAnterior == 0) return 0;
-        return ((ventasActual - ventasAnterior) / ventasAnterior) * 100;
+        if (ventasAnterior == 0) return (0, false);
+        return (((ventasActual - ventasAnterior) / ventasAnterior) * 100, true);
     }
 
     public async Task<int> ContarFacturasAsync()
@@ -328,7 +939,9 @@ public class FacturaService
             Fecha = f.Fecha,
             ClienteNombre = f.Cliente?.NombreRazonSocial ?? "",
             Total = f.Total,
-            Estado = f.Estado.ToString()
+            Estado = f.Estado.ToString(),
+            EstadoSri = f.EstadoSri,
+            ClaveAcceso = f.ClaveAcceso
         }).ToList();
     }
 

@@ -138,6 +138,12 @@ secrets.json
 *.key
 *.pem
 
+# Carpeta de certificados (no subir certificados al repo)
+WebAPI/certs/*.p12
+WebAPI/certs/*.pfx
+WebAPI/certs/*.key
+WebAPI/certs/*.pem
+
 # Blazor WebAssembly específico
 UI/bin/
 UI/obj/

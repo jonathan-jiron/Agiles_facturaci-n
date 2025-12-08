@@ -62,6 +62,8 @@ public class FacturaListDto
     public string ClienteNombre { get; set; } = "";
     public decimal Total { get; set; }
     public string Estado { get; set; } = "";
+    public string? EstadoSri { get; set; }
+    public string? ClaveAcceso { get; set; }
 }
 
 // Puedes poner esto en ProductoSelector.razor.cs o donde corresponda

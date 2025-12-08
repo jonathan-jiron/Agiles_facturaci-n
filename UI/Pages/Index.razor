@@ -24,33 +24,25 @@
     <!-- Tarjetas de Estadísticas -->
     <div class="row g-4 mb-4">
         <div class="col-md-3">
-            <div class="stat-card stat-card-blue">
+            <div class="stat-card stat-card-blue stat-card-no-footer">
                 <div class="stat-icon">
                     <i class="fas fa-users"></i>
                 </div>
                 <div class="stat-content">
-                    <span class="fs-1 fw-bold me-3">@totalClientes</span>
+                    <span class="stat-number-value">@totalClientes</span>
                     <p class="stat-label">Clientes Registrados</p>
-                </div>
-                <div class="stat-footer">
-                    <i class="fas fa-arrow-up text-success me-1"></i>
-                    <span class="text-success">+12%</span> vs. mes anterior
                 </div>
             </div>
         </div>
 
         <div class="col-md-3">
-            <div class="stat-card stat-card-green">
+            <div class="stat-card stat-card-green stat-card-no-footer">
                 <div class="stat-icon">
                     <i class="fas fa-box"></i>
                 </div>
                 <div class="stat-content">
-                    <span class="fs-1 fw-bold me-3">@totalProductos</span>
+                    <span class="stat-number-value">@totalProductos</span>
                     <p class="stat-label">Productos en Inventario</p>
-                </div>
-                <div class="stat-footer">
-                    <i class="fas fa-arrow-up text-success me-1"></i>
-                    <span class="text-success">+8%</span> vs. mes anterior
                 </div>
             </div>
         </div>
@@ -61,12 +53,11 @@
                     <i class="fas fa-file-invoice-dollar"></i>
                 </div>
                 <div class="stat-content">
-                    <span class="fs-1 fw-bold me-3">@totalFacturasMes</span>
+                    <span class="stat-number-value">@totalFacturasMes</span>
                     <p class="stat-label">Facturas del Mes</p>
                 </div>
                 <div class="stat-footer">
-                    <i class="fas fa-file-invoice me-1 text-muted"></i>
-                    <span class="text-muted">@totalFacturas total</span>
+                    <span class="text-muted">Total: @totalFacturas facturas</span>
                 </div>
             </div>
         </div>
@@ -77,21 +68,26 @@
                     <i class="fas fa-dollar-sign"></i>
                 </div>
                 <div class="stat-content">
-                    <span class="fs-1 fw-bold me-3">@($"${ventasMes:N2}")</span>
+                    <span class="stat-number-value">@($"${ventasMes:N2}")</span>
                     <p class="stat-label">Ventas del Mes</p>
                 </div>
                 <div class="stat-footer">
-                    @if (crecimientoVentas >= 0)
+                    @if (crecimientoVentas == 0 && !hayDatosMesAnteriorVentas)
+                    {
+                        <span class="text-muted">Sin datos del mes anterior</span>
+                    }
+                    else if (crecimientoVentas >= 0)
                     {
                         <i class="fas fa-arrow-up text-success me-1"></i>
                         <span class="text-success">+@($"{crecimientoVentas:F1}")%</span>
+                        <span class="text-muted"> vs. mes anterior</span>
                     }
                     else
                     {
                         <i class="fas fa-arrow-down text-danger me-1"></i>
                         <span class="text-danger">@($"{crecimientoVentas:F1}")%</span>
+                        <span class="text-muted"> vs. mes anterior</span>
                     }
-                    <span class="text-muted"> vs. mes anterior</span>
                 </div>
             </div>
         </div>
@@ -139,14 +135,14 @@
         </div>
 
         <div class="col-md-6 col-lg-3">
-            <div class="quick-access-card" style="cursor: not-allowed; opacity: 0.6;">
+            <a href="/reportes" class="quick-access-card">
                 <div class="qa-icon qa-icon-purple">
                     <i class="fas fa-chart-bar"></i>
                 </div>
                 <h5 class="qa-title">Reportes</h5>
                 <p class="qa-description">Análisis y estadísticas</p>
-                <span class="badge bg-warning text-dark">Próximamente</span>
-            </div>
+                <span class="qa-arrow">→</span>
+            </a>
         </div>
     </div>
 
@@ -154,50 +150,124 @@
     <div class="row g-4">
         <div class="col-lg-8">
             <div class="info-card">
-                <div class="info-header">
+                <div class="info-header d-flex justify-content-between align-items-center">
                     <h5 class="fw-bold mb-0">
-                        <i class="fas fa-info-circle text-primary me-2"></i>
-                        Información del Sistema
+                        <i class="fas fa-exclamation-circle text-warning me-2"></i>
+                        Facturas Pendientes
                     </h5>
+                    <a href="/facturas" class="btn btn-sm btn-outline-primary">
+                        Ver todas <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
                 </div>
-                <div class="info-body info-body-full">
-                    <div class="alert alert-info border-0 mb-3">
-                        <i class="fas fa-check-circle me-2"></i>
-                        <strong>Sistema Integrado:</strong> Conectado con la API del SRI Ecuador
-                    </div>
-                    <div class="alert alert-success border-0 mb-3">
-                        <i class="fas fa-shield-alt me-2"></i>
-                        <strong>Seguridad:</strong> Autenticación JWT activa
-                    </div>
-                    <div class="alert alert-warning border-0 mb-3">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <strong>Recordatorio:</strong> Mantén actualizados tus datos de clientes
-                    </div>
-                    <div class="alert alert-primary border-0 mb-0">
-                        <i class="fas fa-sync-alt me-2"></i>
-                        <strong>Última sincronización:</strong> @DateTime.Now.ToString("dd/MM/yyyy HH:mm")
-                    </div>
+                <div class="info-body info-body-full" style="max-height: 500px; overflow-y: auto;">
+                    @if (facturasPendientes.Any())
+                    {
+                        @foreach (var factura in facturasPendientes)
+                        {
+                            <div class="alert @GetAlertaClass(factura) border-0 mb-3" style="cursor: pointer;" @onclick="() => VerFactura(factura.Id)">
+                                <div class="d-flex align-items-start">
+                                    <div class="me-3">
+                                        <i class="fas @GetAlertaIcono(factura) fa-lg"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-start mb-1">
+                                            <div>
+                                                <strong>@factura.Numero</strong>
+                                                <span class="badge @GetEstadoBadgeClass(factura.Estado, factura.EstadoSri) ms-2">
+                                                    @GetEstadoDisplay(factura.Estado, factura.EstadoSri)
+                                                </span>
+                                            </div>
+                                            <span class="fw-bold">$@factura.Total.ToString("N2")</span>
+                                        </div>
+                                        <div class="small mb-1">
+                                            <i class="fas fa-user me-1"></i>@(factura.ClienteNombre ?? "Sin cliente")
+                                        </div>
+                                        <div class="small">
+                                            <i class="fas fa-calendar me-1"></i>@factura.Fecha.ToString("dd/MM/yyyy HH:mm")
+                                        </div>
+                                        @if (!string.IsNullOrWhiteSpace(GetAccionRequerida(factura)))
+                                        {
+                                            <div class="mt-2">
+                                                <small><strong>Acción requerida:</strong> @GetAccionRequerida(factura)</small>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else if (cargandoPendientes)
+                    {
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="mt-2 text-muted small">Cargando facturas pendientes...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-success border-0 mb-0">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>¡Excelente!</strong> No hay facturas pendientes de atención.
+                        </div>
+                    }
                 </div>
             </div>
         </div>
 
         <div class="col-lg-4">
             <div class="info-card">
-                <div class="info-header">
+                <div class="info-header d-flex justify-content-between align-items-center">
                     <h5 class="fw-bold mb-0">
-                        <i class="fas fa-clock text-success me-2"></i>
-                        Actividad Reciente
+                        <i class="fas fa-file-invoice text-primary me-2"></i>
+                        Facturas Recientes
                     </h5>
+                    <a href="/facturas" class="btn btn-sm btn-outline-primary">
+                        Ver todas <i class="fas fa-arrow-right ms-1"></i>
+                    </a>
                 </div>
-                <div class="info-body">
-                    @foreach (var actividad in actividades)
+                <div class="info-body" style="max-height: 500px; overflow-y: auto;">
+                    @if (facturasRecientes.Any())
                     {
-                        <div class="d-flex align-items-center mb-3">
-                            <i class="@actividad.Icono fa-2x me-3" style="color:@actividad.Color"></i>
-                            <div>
-                                <div class="fw-bold">@actividad.Titulo</div>
-                                <div class="text-muted small">@actividad.Descripcion</div>
+                        @foreach (var factura in facturasRecientes)
+                        {
+                            <div class="activity-item mb-3 pb-3 border-bottom" style="cursor: pointer;" @onclick="() => VerFactura(factura.Id)">
+                                <div class="d-flex align-items-start">
+                                    <div class="activity-icon me-3">
+                                        <i class="fas fa-file-invoice-dollar fa-lg" style="color: #667eea;"></i>
+                                    </div>
+                                    <div class="activity-content flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-start mb-1">
+                                            <div>
+                                                <span class="fw-bold text-primary">@factura.Numero</span>
+                                                <span class="badge @GetEstadoBadgeClass(factura.Estado, factura.EstadoSri) ms-2">
+                                                    @GetEstadoDisplay(factura.Estado, factura.EstadoSri)
+                                                </span>
+                                            </div>
+                                            <span class="text-success fw-bold">$@factura.Total.ToString("N2")</span>
+                                        </div>
+                                        <div class="text-muted small mb-1">
+                                            <i class="fas fa-user me-1"></i>@(factura.ClienteNombre ?? "Sin cliente")
+                                        </div>
+                                        <div class="text-muted small">
+                                            <i class="fas fa-calendar me-1"></i>@factura.Fecha.ToString("dd/MM/yyyy HH:mm")
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+                        }
+                    }
+                    else if (cargandoFacturas)
+                    {
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="mt-2 text-muted small">Cargando facturas...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info border-0 mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            No hay facturas recientes
                         </div>
                     }
                 </div>
@@ -207,12 +277,25 @@
 </div>
 
 <style>
+    /* Asegurar que el contenido no expanda el contenedor */
+    .content-area {
+        max-width: 1250px !important;
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+
+    .content-area.ampliado {
+        max-width: 2200px !important;
+    }
+
     .welcome-banner {
         background: white;
         border-radius: 20px;
         padding: 2.5rem;
         margin-bottom: 2rem;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        max-width: 100%;
+        box-sizing: border-box;
     }
 
     .stat-card {
@@ -252,6 +335,24 @@
     .stat-content {
         position: relative;
         z-index: 1;
+        overflow: hidden;
+    }
+
+    /* Centrar contenido cuando no hay footer */
+    .stat-card-no-footer .stat-content {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: 120px;
+    }
+
+    /* Espacio adicional entre número y label en tarjetas sin footer */
+    .stat-card-no-footer .stat-number-value {
+        margin-bottom: 1rem;
+    }
+
+    .stat-card-no-footer .stat-label {
+        margin-bottom: 0;
     }
 
     .stat-number {
@@ -259,6 +360,23 @@
         font-weight: 700;
         color: #2d3748;
         margin-bottom: 0.5rem;
+    }
+
+    .stat-number-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2d3748;
+        display: block;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        line-height: 1.2;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .stat-card.stat-card-purple .stat-number-value {
+        font-size: 1.75rem;
     }
 
     .stat-label {
@@ -402,6 +520,24 @@
         font-size: 0.8rem;
     }
 
+    .activity-item {
+        transition: background-color 0.2s, transform 0.2s;
+        border-radius: 8px;
+        padding: 0.75rem;
+        margin-left: -0.75rem;
+        margin-right: -0.75rem;
+    }
+
+    .activity-item:hover {
+        background-color: #f8f9fa;
+        transform: translateX(5px);
+    }
+
+    .activity-icon {
+        min-width: 40px;
+        text-align: center;
+    }
+
     @@media (max-width: 768px) {
 
         .welcome-banner {
@@ -409,6 +545,10 @@
         }
 
         .stat-number {
+            font-size: 2rem;
+        }
+
+        .stat-number-value {
             font-size: 2rem;
         }
 
@@ -426,6 +566,8 @@
 @inject ProductoService productoService
 @inject AuthService authService
 @inject FacturaService facturaService
+@inject NavigationManager Navigation
+@using Application.DTOs
 
 @code {
     private int totalClientes;
@@ -434,17 +576,173 @@
     private int totalFacturasMes;
     private decimal ventasMes;
     private decimal crecimientoVentas;
-    private List<EventoActividad> actividades = new();
+    private bool hayDatosMesAnteriorVentas = false;
+    private List<FacturaListDto> facturasRecientes = new();
+    private bool cargandoFacturas = false;
+    private List<FacturaListDto> facturasPendientes = new();
+    private bool cargandoPendientes = false;
 
     protected override async Task OnInitializedAsync()
     {
         totalClientes = await authService.GetClientesCountAsync();
         totalProductos = await productoService.GetProductosCountAsync();
-        actividades = await productoService.GetActividadRecienteAsync();
         
         totalFacturas = await facturaService.GetTotalFacturasAsync();
         totalFacturasMes = await facturaService.GetFacturasMesActualAsync();
         ventasMes = await facturaService.GetVentasMesActualAsync();
-        crecimientoVentas = await facturaService.GetCrecimientoVentasAsync();
+        
+        var resultadoVentas = await facturaService.GetCrecimientoVentasAsync();
+        crecimientoVentas = resultadoVentas.crecimiento;
+        hayDatosMesAnteriorVentas = resultadoVentas.hayDatosAnterior;
+        
+        await CargarFacturasRecientes();
+        await CargarFacturasPendientes();
+    }
+
+    private async Task CargarFacturasPendientes()
+    {
+        cargandoPendientes = true;
+        try
+        {
+            var todasFacturas = await facturaService.ListarFacturasAsync();
+            facturasPendientes = todasFacturas
+                .Where(f => 
+                {
+                    var estadoSriUpper = f.EstadoSri?.ToUpperInvariant() ?? "";
+                    var estadoLower = f.Estado?.ToLowerInvariant() ?? "";
+                    
+                    // Facturas que necesitan firma (sin EstadoSri y no están firmadas localmente)
+                    var necesitaFirmar = string.IsNullOrWhiteSpace(f.EstadoSri) && estadoLower != "firmada";
+                    
+                    // Facturas firmadas pero no autorizadas
+                    var necesitaAutorizar = (estadoLower == "firmada" || estadoSriUpper == "FIRMADA") 
+                                          && estadoSriUpper != "AUTORIZADO" 
+                                          && estadoSriUpper != "NO AUTORIZADO";
+                    
+                    // Facturas rechazadas que necesitan atención
+                    var rechazada = estadoSriUpper == "NO AUTORIZADO";
+                    
+                    return necesitaFirmar || necesitaAutorizar || rechazada;
+                })
+                .OrderByDescending(f => f.Fecha)
+                .Take(10)
+                .ToList();
+        }
+        catch
+        {
+            facturasPendientes = new();
+        }
+        finally
+        {
+            cargandoPendientes = false;
+        }
+    }
+
+    private async Task CargarFacturasRecientes()
+    {
+        cargandoFacturas = true;
+        try
+        {
+            facturasRecientes = await facturaService.GetFacturasRecientesAsync(5);
+        }
+        catch
+        {
+            facturasRecientes = new();
+        }
+        finally
+        {
+            cargandoFacturas = false;
+        }
+    }
+
+    private string GetEstadoDisplay(string? estado, string? estadoSri)
+    {
+        if (!string.IsNullOrWhiteSpace(estadoSri))
+        {
+            return estadoSri.ToUpper() switch
+            {
+                "AUTORIZADO" => "Autorizado",
+                "NO AUTORIZADO" => "No Autorizado",
+                "FIRMADA" => "Firmada",
+                _ => estadoSri
+            };
+        }
+        return estado ?? "Emitida";
+    }
+
+    private string GetEstadoBadgeClass(string? estado, string? estadoSri)
+    {
+        if (!string.IsNullOrWhiteSpace(estadoSri))
+        {
+            return estadoSri.ToUpper() switch
+            {
+                "AUTORIZADO" => "bg-success",
+                "NO AUTORIZADO" => "bg-danger",
+                "FIRMADA" => "bg-warning",
+                _ => "bg-secondary"
+            };
+        }
+        return estado?.ToLower() switch
+        {
+            "firmada" => "bg-warning",
+            "emitida" => "bg-info",
+            _ => "bg-secondary"
+        };
+    }
+
+    private void VerFactura(int facturaId)
+    {
+        Navigation.NavigateTo($"/facturas/consulta/{facturaId}");
+    }
+
+    private string GetAlertaClass(FacturaListDto factura)
+    {
+        var estadoSriUpper = factura.EstadoSri?.ToUpperInvariant() ?? "";
+        var estadoLower = factura.Estado?.ToLowerInvariant() ?? "";
+        
+        if (estadoSriUpper == "NO AUTORIZADO")
+            return "alert-danger";
+        
+        if (string.IsNullOrWhiteSpace(factura.EstadoSri) && estadoLower != "firmada")
+            return "alert-warning";
+        
+        if ((estadoLower == "firmada" || estadoSriUpper == "FIRMADA") && estadoSriUpper != "AUTORIZADO")
+            return "alert-info";
+        
+        return "alert-secondary";
+    }
+
+    private string GetAlertaIcono(FacturaListDto factura)
+    {
+        var estadoSriUpper = factura.EstadoSri?.ToUpperInvariant() ?? "";
+        var estadoLower = factura.Estado?.ToLowerInvariant() ?? "";
+        
+        if (estadoSriUpper == "NO AUTORIZADO")
+            return "fa-times-circle";
+        
+        if (string.IsNullOrWhiteSpace(factura.EstadoSri) && estadoLower != "firmada")
+            return "fa-signature";
+        
+        if ((estadoLower == "firmada" || estadoSriUpper == "FIRMADA") && estadoSriUpper != "AUTORIZADO")
+            return "fa-paper-plane";
+        
+        return "fa-file-invoice";
+    }
+
+    private string GetAccionRequerida(FacturaListDto factura)
+    {
+        var estadoSriUpper = factura.EstadoSri?.ToUpperInvariant() ?? "";
+        var estadoLower = factura.Estado?.ToLowerInvariant() ?? "";
+        
+        if (estadoSriUpper == "NO AUTORIZADO")
+            return "Revisar y corregir - Factura rechazada por el SRI";
+        
+        if (string.IsNullOrWhiteSpace(factura.EstadoSri) && estadoLower != "firmada")
+            return "Firmar factura";
+        
+        if ((estadoLower == "firmada" || estadoSriUpper == "FIRMADA") && estadoSriUpper != "AUTORIZADO")
+            return "Emitir al SRI para autorización";
+        
+        return "";
     }
 }
