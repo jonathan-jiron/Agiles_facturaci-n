@@ -1,5 +1,5 @@
 @page "/facturacion"
-@attribute [Authorize]
+@* @attribute [Authorize] - Temporalmente sin auth para pruebas SRI *@
 @layout MainLayout
 @inject FacturaService FacturaService
 @inject NotificationService NotificationService
@@ -33,20 +33,21 @@
                         <InputDate @bind-Value="facturaForm.FechaEmision" class="form-control" @onchange="OnFechaEmisionChanged" />
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Establecimiento <span class="text-danger">*</span></label>
-                        <input class="form-control" @bind="facturaForm.Establecimiento" required maxlength="3" />
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Punto de Emisión <span class="text-danger">*</span></label>
-                        <input class="form-control" @bind="facturaForm.PuntoEmision" required maxlength="3" />
+                        <label class="form-label">Número de Documento <span class="text-danger">*</span></label>
+                        <input class="form-control" value="@numeroCompleto" readonly />
+                        <small class="text-muted">Se genera automáticamente: @facturaForm.Establecimiento-@facturaForm.PuntoEmision-@secuencialDisplay</small>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Vendedor</label>
-                        <input class="form-control" @bind="facturaForm.Vendedor" maxlength="50" />
+                        <input class="form-control" value="@facturaForm.Vendedor" readonly />
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Número de Documento <span class="text-danger">*</span></label>
-                        <input class="form-control" @bind="facturaForm.NumeroDocumento" required maxlength="15" />
+                    <div class="col-md-3" style="display: none;">
+                        <label class="form-label">Establecimiento <span class="text-danger">*</span></label>
+                        <input class="form-control" @bind="facturaForm.Establecimiento" required maxlength="3" />
+                    </div>
+                    <div class="col-md-3" style="display: none;">
+                        <label class="form-label">Punto de Emisión <span class="text-danger">*</span></label>
+                        <input class="form-control" @bind="facturaForm.PuntoEmision" required maxlength="3" />
                     </div>
                 </div>
             </div>
@@ -110,23 +111,23 @@
             <div class="card-header bg-light">
                 <h5 class="mb-0"><i class="fas fa-boxes me-2"></i>Productos</h5>
             </div>
-            <div class="card-body">
+            <div class="card-body" style="width: 100%; max-width: 100%; box-sizing: border-box; overflow-x: hidden;">
                 <div class="mb-3">
                     <label class="form-label">Bodega</label>
                     <input class="form-control" value="Bodega Principal" readonly />
                 </div>
-                <div class="table-responsive" style="min-height:350px;">
-                    <table class="table table-bordered align-middle">
+                <div class="table-responsive productos-table-container" style="min-height:350px; width: 100%; max-width: 100%; box-sizing: border-box; overflow-x: hidden;">
+                    <table class="table table-bordered align-middle productos-table">
                         <thead class="table-light">
                             <tr table-bordered>
-                                <th style="width:40px;"></th>
-                                <th class="text-end" style="width:80px;">Cant.</th>
-                                <th>Producto</th>
-                                <th>Unidad</th>
-                                <th class="text-end" style="width:120px;">Precio U.</th>
+                                <th style="width:50px;"></th>
+                                <th class="text-end" style="width:70px;">Cant.</th>
+                                <th style="min-width:250px;">Producto</th>
+                                <th style="width:100px;">Unidad</th>
+                                <th class="text-end" style="width:100px;">Precio U.</th>
                                 <th class="text-end" style="width:80px;">Desc. %</th>
-                                <th class="text-end" style="width:100px;">Desc. $</th>
-                                <th class="text-end" style="width:120px;">Subtotal</th>
+                                <th class="text-end" style="width:90px;">Desc. $</th>
+                                <th class="text-end" style="width:100px;">Subtotal</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -145,14 +146,17 @@
                                                @oninput="(e) => { detalles[index].RecalcularTotales(); }" />
                                     </td>
                                     <td style="position:relative;">
-                                        <input class="form-control form-control-sm"
+                                        <input id="@($"producto-input-{index}")" 
+                                               class="form-control form-control-sm producto-search-input"
                                                placeholder="Buscar producto..."
                                                value="@detalles[index].ProductoNombre"
                                                @oninput="async e => await BuscarProducto(index, e.Value?.ToString())"
-                                               @onblur="() => OnProductoSeleccionadoFila(index, detalles[index].ProductoSeleccionado)" />
+                                               @onfocus="async () => await PosicionarDropdown(index)"
+                                               @onblur="async () => { OnProductoSeleccionadoFila(index, detalles[index].ProductoSeleccionado); await ClearActiveDropdown(); }" />
                                         @if (detalles[index].ResultadosBusqueda?.Any() == true)
                                         {
-                                            <div class="dropdown-menu show producto-dropdown">
+                                            <div id="@($"producto-dropdown-{index}")" 
+                                                 class="dropdown-menu show producto-dropdown">
                                                 @foreach (var prod in detalles[index].ResultadosBusqueda)
                                                 {
                                                     <button type="button" class="dropdown-item"
@@ -167,9 +171,8 @@
                                         <input class="form-control form-control-sm" value="@detalles[index].Unidad" readonly />
                                     </td>
                                     <td>
-                                        <input type="number" class="form-control form-control-sm text-end"
-                                               @bind="detalles[index].PrecioUnitario" min="0" step="0.01"
-                                               @oninput="(e) => { detalles[index].RecalcularTotales(); }" />
+                                        <input type="text" class="form-control form-control-sm text-end" readonly
+                                               value="@($"${detalles[index].PrecioUnitario:N2}")" />
                                     </td>
                                     <td>
                                         <input type="number" class="form-control form-control-sm text-end"
@@ -376,7 +379,7 @@
     }
 
     <!-- Modal de edición de cliente -->
-    @if (mostrarModalEditarCliente)
+    @if (mostrarModalEditarCliente && clienteActual != null)
     {
         <div class="modal-backdrop"></div>
         <div class="modal-edicion modal-edicion-grande">
@@ -444,7 +447,6 @@
     private string filtroCliente = "";
     private bool mostrarModalEditarCliente = false;
     private string clienteValidationMessage = "";
-    private bool mostrarResumen = false;
     private int? facturaGuardadaId = null;
     private string numeroGenerado = "";
 
@@ -463,25 +465,61 @@
     private decimal total => subtotal - descuentoTotal + iva + iceTotal + irbpnrTotal;
     private decimal pagado = 0;
     private decimal saldo => Math.Max(0, total - pagado);
+    private int secuencialActual = 1;
+    
+    private string secuencialDisplay => secuencialActual.ToString("D9");
+    private string numeroCompleto => $"{facturaForm.Establecimiento.PadLeft(3, '0')}-{facturaForm.PuntoEmision.PadLeft(3, '0')}-{secuencialDisplay}";
 
     protected override async Task OnInitializedAsync()
     {
         clientes = await Http.GetFromJsonAsync<List<Cliente>>("api/clientes") ?? new();
         facturaForm.FechaEmision = DateTime.Now;
-        facturaForm.Establecimiento = "001";
-        facturaForm.PuntoEmision = "001";
-        facturaForm.Vendedor = "JEAN REDROBAN";
-        facturaForm.NumeroDocumento = await ObtenerSecuenciaFacturaAsync();
+        
+        // Cargar configuración SRI desde el backend
+        try
+        {
+            var config = await Http.GetFromJsonAsync<Dictionary<string, string>>("api/facturas/configuracion-sri");
+            if (config != null)
+            {
+                facturaForm.Establecimiento = config.GetValueOrDefault("establecimiento", "001");
+                facturaForm.PuntoEmision = config.GetValueOrDefault("puntoEmision", "001");
+            }
+            else
+            {
+                facturaForm.Establecimiento = "001";
+                facturaForm.PuntoEmision = "001";
+            }
+        }
+        catch
+        {
+            // Valores por defecto si falla la carga
+            facturaForm.Establecimiento = "001";
+            facturaForm.PuntoEmision = "001";
+        }
+        
+        // Cargar secuencia actual
+        await CargarSecuenciaActual();
+        
         if (detalles.Count == 0)
             AgregarDetalle();
     }
-
-    // Método para obtener la secuencia del número de documento
-    private async Task<string> ObtenerSecuenciaFacturaAsync()
+    
+    private async Task CargarSecuenciaActual()
     {
-        var fecha = facturaForm.FechaEmision.ToString("yyyy-MM-dd");
-        var secuencia = await Http.GetStringAsync($"api/facturas/secuencia?fecha={fecha}");
-        return secuencia ?? $"{DateTime.Now:yyyyMMdd}-00001";
+        try
+        {
+            var fecha = facturaForm.FechaEmision.ToString("yyyy-MM-dd");
+            var respuesta = await Http.GetFromJsonAsync<Dictionary<string, object>>($"api/facturas/secuencia?fecha={fecha}&establecimiento={facturaForm.Establecimiento}&puntoEmision={facturaForm.PuntoEmision}");
+            if (respuesta != null && respuesta.ContainsKey("secuencial"))
+            {
+                if (int.TryParse(respuesta["secuencial"].ToString(), out var sec))
+                    secuencialActual = sec;
+            }
+        }
+        catch
+        {
+            secuencialActual = 1;
+        }
     }
 
     private void AgregarDetalle()
@@ -511,7 +549,10 @@
         if (facturaForm.FechaEmision == default) return false;
         if (string.IsNullOrWhiteSpace(facturaForm.Establecimiento) || facturaForm.Establecimiento.Length != 3) return false;
         if (string.IsNullOrWhiteSpace(facturaForm.PuntoEmision) || facturaForm.PuntoEmision.Length != 3) return false;
-        if (string.IsNullOrWhiteSpace(facturaForm.NumeroDocumento)) return false;
+        // Validaciones básicas - el número se genera automáticamente en el backend
+        if (facturaForm.FechaEmision == default) return false;
+        if (string.IsNullOrWhiteSpace(facturaForm.Establecimiento) || facturaForm.Establecimiento.Length != 3) return false;
+        if (string.IsNullOrWhiteSpace(facturaForm.PuntoEmision) || facturaForm.PuntoEmision.Length != 3) return false;
         if (clienteActual == null) return false;
         if (string.IsNullOrWhiteSpace(clienteActual.NombreRazonSocial)) return false;
         if (string.IsNullOrWhiteSpace(clienteActual.TipoIdentificacion)) return false;
@@ -631,15 +672,19 @@
     private async Task FirmarFactura(int facturaId)
     {
         NotificationService.ShowInfo("Firmando factura...");
-        var resp = await FacturaService.FirmarFacturaAsync(facturaId);
-        if (resp)
+        var resultado = await FacturaService.FirmarFacturaAsync(facturaId);
+        if (resultado != null && resultado.Exito)
         {
-            NotificationService.ShowSuccess("Factura firmada correctamente.");
-            await CargarFacturas();
+            var mensaje = $"Factura {resultado.Numero} firmada correctamente.";
+            if (!string.IsNullOrEmpty(resultado.ClaveAcceso))
+                mensaje += $"\nClave de Acceso: {resultado.ClaveAcceso}";
+            NotificationService.ShowSuccess(mensaje);
+            CargarFacturas(); // Navegar a la lista de facturas
         }
         else
         {
-            NotificationService.ShowError("No se pudo firmar la factura.");
+            var errorMsg = resultado?.Error ?? "No se pudo firmar la factura.";
+            NotificationService.ShowError($"Error al firmar: {errorMsg}");
         }
     }
 
@@ -650,7 +695,6 @@
         detalles.Clear();
         errorGeneral = "";
         clienteValidationMessage = "";
-        mostrarResumen = false;
         NotificationService.ShowInfo("Formulario limpiado");
         AgregarDetalle();
     }
@@ -677,9 +721,33 @@
         }
         var productos = await Http.GetFromJsonAsync<List<ProductoSelector.ProductoDto>>($"api/productos/buscar?query={texto}");
         detalles[index].ResultadosBusqueda = productos ?? new List<ProductoSelector.ProductoDto>();
+        
+        // Posicionar el dropdown después de obtener los resultados
+        if (detalles[index].ResultadosBusqueda.Any())
+        {
+            await PosicionarDropdown(index);
+        }
     }
 
-    private void SeleccionarProductoFila(int index, ProductoSelector.ProductoDto producto)
+    private async Task PosicionarDropdown(int index)
+    {
+        // Esperar a que Blazor actualice el DOM
+        await Task.Delay(50);
+        await JS.InvokeVoidAsync("posicionarProductoDropdown", $"producto-input-{index}", $"producto-dropdown-{index}");
+        StateHasChanged(); // Forzar actualización del UI
+    }
+
+    private async Task SetActiveDropdown(int index)
+    {
+        await JS.InvokeVoidAsync("setActiveDropdown", $"producto-dropdown-{index}", $"producto-input-{index}");
+    }
+
+    private async Task ClearActiveDropdown()
+    {
+        await JS.InvokeVoidAsync("clearActiveDropdown");
+    }
+
+    private async void SeleccionarProductoFila(int index, ProductoSelector.ProductoDto producto)
     {
         if (index < 0 || index >= detalles.Count)
             return;
@@ -693,6 +761,8 @@
         detalles[index].ProductoSeleccionado = producto;
         detalles[index].TieneIva = producto.TieneIva;
         detalles[index].RecalcularTotales();
+        await JS.InvokeVoidAsync("clearActiveDropdown");
+        StateHasChanged();
     }
 
     private void OnProductoSeleccionadoFila(int index, ProductoSelector.ProductoDto? producto)
@@ -816,8 +886,7 @@
         public string TipoDocumento { get; set; } = "Factura";
         public string Establecimiento { get; set; } = "";
         public string PuntoEmision { get; set; } = "";
-        public string NumeroDocumento { get; set; } = "";
-        public string Vendedor { get; set; } = "";
+        public string Vendedor { get; set; } = "NUMA POMPILIO LLONA NA MEDARDO ANGEL SILVA";
         public string FormaPago { get; set; } = "";
         public string NumeroComprobante { get; set; } = "";
         public string Observaciones { get; set; } = "";
@@ -869,9 +938,11 @@
     {
         if (e.Value is string fechaStr && DateTime.TryParse(fechaStr, out var fecha))
             facturaForm.FechaEmision = fecha;
-        facturaForm.NumeroDocumento = await ObtenerSecuenciaFacturaAsync();
+        // Recargar secuencia cuando cambia la fecha
+        await CargarSecuenciaActual();
     }
-    private async Task CargarFacturas()
+    
+    private void CargarFacturas()
     {
         Navigation.NavigateTo("/facturas", true);
     }

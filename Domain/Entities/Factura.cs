@@ -39,4 +39,14 @@ public class Factura
 
     [MaxLength(300)]
     public string Observaciones { get; set; } = string.Empty;
+
+    public string? ClaveAcceso { get; set; }
+    public string? SecuencialSri { get; set; }
+    public string? NumeroAutorizacion { get; set; }
+    public DateTime? FechaAutorizacion { get; set; }
+    public string? EstadoSri { get; set; }
+    public string? MensajesSri { get; set; }
+    public string? XmlGenerado { get; set; }
+    public string? XmlFirmado { get; set; }
+    public string? XmlAutorizado { get; set; }
 }

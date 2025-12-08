@@ -1,7 +1,10 @@
 @page "/facturas/consulta/{Id:int}"
-@attribute [Authorize]
+@* @attribute [Authorize] - Temporalmente sin auth para pruebas *@
 @inject FacturaService FacturaService
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject HttpClient Http
+@inject NotificationService NotificationService
 
 <PageTitle>Consultar Documento Electrónico</PageTitle>
 
@@ -27,8 +30,12 @@
     }
     else
     {
-        <div class="alert alert-success mb-3">
-            <i class="fas fa-check-circle me-2"></i>Documento firmado satisfactoriamente.
+        var estadoDisplay = factura.Firmada ? "Firmado" : factura.Estado;
+        var estadoBadgeClass = factura.Firmada ? "alert-success" : "alert-warning";
+        var estadoIcon = factura.Firmada ? "fa-check-circle" : "fa-clock";
+        
+        <div class="alert @estadoBadgeClass mb-3">
+            <i class="fas @estadoIcon me-2"></i>Estado: @estadoDisplay
         </div>
 
         <div class="card shadow-sm mb-4">
@@ -56,7 +63,11 @@
                 </div>
                 <div class="row mb-2">
                     <div class="col-md-3"><strong>Estado:</strong></div>
-                    <div class="col-md-3 text-success fw-bold">Firmado</div>
+                    <div class="col-md-3">
+                        <span class="badge @(factura.Firmada ? "bg-success" : "bg-warning")">
+                            @estadoDisplay
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -136,11 +147,14 @@
             <button class="btn btn-secondary" @onclick="Volver">
                 <i class="fas fa-arrow-left me-2"></i>Volver
             </button>
-            <button class="btn btn-outline-primary" disabled="@(!factura.Firmada)">
+            <button class="btn btn-outline-primary" @onclick="() => DescargarPDF(Id)">
                 <i class="fas fa-file-pdf me-2"></i>Descargar PDF
             </button>
-            <button class="btn btn-outline-info" disabled="@(!factura.Firmada)">
+            <button class="btn btn-outline-info" @onclick="() => DescargarXML(Id)">
                 <i class="fas fa-file-code me-2"></i>Descargar XML
+            </button>
+            <button class="btn btn-outline-success" @onclick="() => EnviarPorEmail(Id)">
+                <i class="fas fa-envelope me-2"></i>Enviar por Correo
             </button>
         </div>
     }
@@ -161,5 +175,67 @@
     private void Volver()
     {
         Navigation.NavigateTo("/facturas");
+    }
+
+    private async Task DescargarPDF(int facturaId)
+    {
+        try
+        {
+            var pdfBytes = await FacturaService.DescargarPDFAsync(facturaId);
+            if (pdfBytes != null && pdfBytes.Length > 0)
+            {
+                await JS.InvokeVoidAsync("downloadFile", $"Factura_{facturaId}.pdf", Convert.ToBase64String(pdfBytes), "application/pdf");
+                NotificationService.ShowSuccess("PDF descargado correctamente.");
+            }
+            else
+            {
+                NotificationService.ShowError("No se pudo generar el PDF.");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Error al descargar PDF: {ex.Message}");
+        }
+    }
+
+    private async Task DescargarXML(int facturaId)
+    {
+        try
+        {
+            // Obtener el XML desde el backend
+            var xmlResp = await Http.GetAsync($"api/facturas/{facturaId}/xml");
+            if (xmlResp.IsSuccessStatusCode)
+            {
+                var xmlContent = await xmlResp.Content.ReadAsStringAsync();
+                var xmlBytes = System.Text.Encoding.UTF8.GetBytes(xmlContent);
+                await JS.InvokeVoidAsync("downloadFile", $"Factura_{facturaId}.xml", Convert.ToBase64String(xmlBytes), "application/xml");
+                NotificationService.ShowSuccess("XML descargado correctamente.");
+            }
+            else
+            {
+                var error = await xmlResp.Content.ReadAsStringAsync();
+                NotificationService.ShowError($"No se pudo obtener el XML: {error}");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ShowError($"Error al descargar XML: {ex.Message}");
+        }
+    }
+
+    private async Task EnviarPorEmail(int facturaId)
+    {
+        NotificationService.ShowInfo("Enviando factura por correo...");
+        var resultado = await FacturaService.EnviarFacturaPorEmailAsync(facturaId);
+        if (resultado != null && resultado.Exito)
+        {
+            var mensaje = resultado.Mensaje ?? "Correo enviado correctamente al cliente.";
+            NotificationService.ShowSuccess(mensaje);
+        }
+        else
+        {
+            var errorMsg = resultado?.Error ?? "No se pudo enviar el correo.";
+            NotificationService.ShowError($"Error al enviar correo: {errorMsg}");
+        }
     }
 }

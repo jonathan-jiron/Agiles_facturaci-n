@@ -6,6 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>App de Facturación</title>
     <base href="/" />
+    <!-- Favicon circular -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <!-- Fallback PNG -->
+    <link rel="icon" type="image/png" href="/img/logo.png" />
     <link href="css/bootstrap/bootstrap.min.css" rel="stylesheet" />
     <link href="css/app.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -28,6 +32,90 @@
     </div>
 
     <script src="_framework/blazor.webassembly.js"></script>
+    <script>
+        window.downloadFile = function (filename, base64Content, contentType) {
+            const blob = base64ToBlob(base64Content, contentType);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        };
+
+        function base64ToBlob(base64, contentType) {
+            const byteCharacters = atob(base64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            return new Blob([byteArray], { type: contentType });
+        }
+
+        // Variables globales para tracking del dropdown activo
+        let activeDropdown = null;
+        let activeInput = null;
+        
+        function actualizarPosicionDropdown() {
+            if (!activeDropdown || !activeInput) return;
+            
+            const rect = activeInput.getBoundingClientRect();
+            
+            // Asegurar que el dropdown esté visible y posicionado correctamente
+            activeDropdown.style.display = 'block';
+            activeDropdown.style.position = 'fixed';
+            activeDropdown.style.top = (rect.bottom) + 'px';
+            activeDropdown.style.left = rect.left + 'px';
+            activeDropdown.style.width = rect.width + 'px';
+            activeDropdown.style.zIndex = '9999';
+            activeDropdown.style.marginTop = '2px';
+        }
+        
+        window.posicionarProductoDropdown = function(inputId, dropdownId) {
+            const input = document.getElementById(inputId);
+            const dropdown = document.getElementById(dropdownId);
+            
+            if (!input || !dropdown) return;
+            
+            // Establecer como dropdown activo para tracking de scroll
+            activeDropdown = dropdown;
+            activeInput = input;
+            
+            // Mostrar el dropdown
+            dropdown.style.display = 'block';
+            
+            // Posicionar inicialmente
+            actualizarPosicionDropdown();
+        };
+        
+        window.setActiveDropdown = function(dropdownId, inputId) {
+            const dropdown = document.getElementById(dropdownId);
+            const input = document.getElementById(inputId);
+            if (dropdown && input) {
+                activeDropdown = dropdown;
+                activeInput = input;
+                actualizarPosicionDropdown();
+            }
+        };
+        
+        window.clearActiveDropdown = function() {
+            activeDropdown = null;
+            activeInput = null;
+        };
+        
+        // Escuchar eventos de scroll para actualizar posición (siempre, no solo cuando el mouse está sobre el dropdown)
+        window.addEventListener('scroll', function() {
+            actualizarPosicionDropdown();
+        }, true);
+        
+        // También escuchar resize de ventana
+        window.addEventListener('resize', function() {
+            actualizarPosicionDropdown();
+        });
+    </script>
 </body>
 
 </html>

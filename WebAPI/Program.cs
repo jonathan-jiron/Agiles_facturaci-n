@@ -9,6 +9,10 @@ using Domain.Interfaces;
 using Infrastructure.Data.Repositories;
 using Application.Services;
 using Infrastructure.Services;
+using QuestPDF.Infrastructure;
+
+// Configurar licencia de QuestPDF (Community para uso no comercial o evaluación)
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -84,10 +88,18 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IFacturaRepository, FacturaRepository>();
 builder.Services.AddScoped<IDetalleFacturaRepository, DetalleFacturaRepository>();
 builder.Services.AddScoped<FacturaService>();
+builder.Services.AddScoped<ReporteService>();
 // Product lookup (obtiene precio desde la BD)
 builder.Services.AddScoped<Application.Interfaces.IProductLookup, Infrastructure.Services.ProductLookup>();
 // Lote allocator (asigna lotes por FIFO y decrementa stock)
 builder.Services.AddScoped<Application.Interfaces.ILoteAllocator, Infrastructure.Services.LoteAllocator>();
+builder.Services.Configure<Infrastructure.Services.Sri.SriOptions>(
+    builder.Configuration.GetSection("Sri"));
+builder.Services.AddSingleton<Infrastructure.Services.Sri.ClaveAccesoGenerator>();
+builder.Services.AddSingleton<Infrastructure.Services.Sri.FacturaXmlBuilder>();
+builder.Services.AddSingleton<Infrastructure.Services.Sri.XadesSigner>();
+builder.Services.AddSingleton<Infrastructure.Services.Sri.SriSoapClient>();
+builder.Services.AddScoped<Infrastructure.Services.Sri.SriIntegrationService>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

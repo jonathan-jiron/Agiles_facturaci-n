@@ -59,7 +59,8 @@ a:hover { color: #764ba2; text-decoration: underline; }
 .table td .badge.fs-6 { min-width: 48px; }
 
 .content-area {
-    max-width: 1250px;      /* Ancho normal */
+    max-width: 1250px !important;      /* Ancho normal */
+    width: 100% !important;
     margin: 0 auto;
     padding: 32px 24px;
     min-height: 100vh;
@@ -67,6 +68,21 @@ a:hover { color: #764ba2; text-decoration: underline; }
     box-sizing: border-box;
     flex: 1;
     min-width: 0;
+    overflow-x: hidden; /* Evitar scroll horizontal */
+}
+
+/* Asegurar que las cards dentro de content-area mantengan el ancho */
+.content-area .card {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+}
+
+.content-area .card-body {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
 .content-area.ampliado {
@@ -312,21 +328,87 @@ html, body {
 }
 
 .producto-dropdown {
-    position: absolute;
-    z-index: 1050;
-    max-height: 260px;
+    position: fixed !important;
+    z-index: 9999;
+    max-height: 300px;
     overflow-y: auto;
-    width: 100%;
-    left: 0;
-    top: 100%;
     background: #fff;
     border: 1px solid #e2e8f0;
     box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    border-radius: 4px;
+    margin-top: 2px;
+    pointer-events: auto;
 }
 
-.content-area .table-responsive > table {
-    min-width: 1100px;
+.producto-dropdown .dropdown-item {
+    white-space: normal;
+    word-wrap: break-word;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
 }
+
+.producto-dropdown .dropdown-item:hover {
+    background-color: #f8f9fa;
+}
+
+/* Asegurar que el contenedor del input tenga position relative */
+td[style*="position:relative"] {
+    position: relative !important;
+    overflow: visible !important;
+}
+
+/* Contenedor de tabla de productos sin scroll horizontal */
+.productos-table-container {
+    overflow-x: visible !important;
+    overflow-y: auto;
+    position: relative;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+}
+
+.productos-table {
+    width: 100% !important;
+    table-layout: fixed !important;
+    min-width: auto !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+}
+
+/* Evitar scroll horizontal en la tabla */
+.productos-table-container .productos-table {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Permitir que el dropdown se muestre fuera del contenedor pero evitar scroll en la tabla */
+.productos-table-container tbody tr td {
+    overflow: visible !important;
+    position: relative;
+}
+
+/* Asegurar que el dropdown no cause scroll en la tabla */
+.productos-table-container .producto-dropdown {
+    position: fixed !important;
+}
+
+.producto-dropdown .dropdown-item {
+    white-space: normal;
+    word-wrap: break-word;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.producto-dropdown .dropdown-item:hover {
+    background-color: #f8f9fa;
+}
+
+/* Removido min-width para evitar que la tabla expanda el contenido */
+/* .content-area .table-responsive > table {
+    min-width: 1100px;
+} */
 
 .table-responsive {
     min-height: 400px;
