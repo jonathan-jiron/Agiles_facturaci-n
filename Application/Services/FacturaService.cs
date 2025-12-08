@@ -76,6 +76,72 @@ public class FacturaService
                 throw new InvalidOperationException($"Stock insuficiente para el producto ID {detalle.ProductoId}");
         }
 
+        // Calcula totales primero
+        var subtotal = dto.Detalles.Sum(d => d.PrecioUnitario * d.Cantidad);
+        var descuentoTotal = dto.Detalles.Sum(d => d.Descuento);
+        var iva = dto.Detalles.Sum(d => d.IvaLinea);
+        var total = subtotal - descuentoTotal + iva;
+
+        // Validar que la suma de pagos no exceda el total
+        var totalPagos = dto.Pagos?.Sum(p => p.Monto) ?? 0m;
+        if (dto.Pagos != null && dto.Pagos.Any() && totalPagos > total)
+        {
+            throw new InvalidOperationException($"El total de pagos (${totalPagos:N2}) no puede exceder el total de la factura (${total:N2})");
+        }
+
+        // Si no hay pagos en la lista pero hay FormaPago (compatibilidad hacia atrás), crear un pago
+        var pagos = new List<PagoFactura>();
+        if (dto.Pagos != null && dto.Pagos.Any())
+        {
+            // Usar los pagos de la lista
+            pagos = dto.Pagos.Select((p, index) => new PagoFactura
+            {
+                FormaPago = p.FormaPago,
+                Monto = p.Monto,
+                NumeroComprobante = p.NumeroComprobante,
+                Orden = p.Orden > 0 ? p.Orden : index + 1
+            }).ToList();
+        }
+        else if (!string.IsNullOrWhiteSpace(dto.FormaPago))
+        {
+            // Compatibilidad hacia atrás: crear un pago desde FormaPago
+            pagos.Add(new PagoFactura
+            {
+                FormaPago = dto.FormaPago,
+                Monto = total,
+                NumeroComprobante = !string.IsNullOrWhiteSpace(dto.NumeroComprobante) ? dto.NumeroComprobante : null,
+                Orden = 1
+            });
+        }
+
+        // Determinar el valor de FormaPago para compatibilidad hacia atrás
+        string formaPagoDescriptiva;
+        if (pagos.Count == 1)
+        {
+            // Si hay un solo pago, usar esa forma de pago
+            formaPagoDescriptiva = pagos[0].FormaPago;
+        }
+        else if (pagos.Count > 1)
+        {
+            // Si hay múltiples pagos, concatenar las formas de pago únicas
+            var formasUnicas = pagos.Select(p => p.FormaPago).Distinct().ToList();
+            if (formasUnicas.Count == 1)
+            {
+                // Si todos los pagos son de la misma forma, solo mostrar esa
+                formaPagoDescriptiva = formasUnicas[0];
+            }
+            else
+            {
+                // Si hay diferentes formas de pago, concatenarlas
+                formaPagoDescriptiva = string.Join(", ", formasUnicas);
+            }
+        }
+        else
+        {
+            // Si no hay pagos en la lista, usar el valor del DTO (compatibilidad hacia atrás)
+            formaPagoDescriptiva = dto.FormaPago;
+        }
+
         var factura = new Factura
         {
             Numero = numero, // <-- Asigna el número generado
@@ -83,7 +149,7 @@ public class FacturaService
             Fecha = dto.Fecha,
             Establecimiento = dto.Establecimiento,
             PuntoEmision = dto.PuntoEmision,
-            FormaPago = dto.FormaPago,
+            FormaPago = formaPagoDescriptiva, // Valor descriptivo basado en los pagos
             Observaciones = dto.Observaciones,
             Estado = EstadoFactura.Generada,
             // Generar secuencial SRI de 9 dígitos para uso interno
@@ -96,13 +162,14 @@ public class FacturaService
                 Descuento = d.Descuento,
                 IvaLinea = d.IvaLinea,
                 LoteId = d.LoteId // Asignado arriba
-            }).ToList()
+            }).ToList(),
+            Pagos = pagos
         };
 
-        // Calcula totales
-        factura.Subtotal = factura.Detalles.Sum(d => d.PrecioUnitario * d.Cantidad);
-        factura.Iva = factura.Detalles.Sum(d => d.IvaLinea);
-        factura.Total = factura.Subtotal - factura.Detalles.Sum(d => d.Descuento) + factura.Iva;
+        // Asignar totales calculados
+        factura.Subtotal = subtotal;
+        factura.Iva = iva;
+        factura.Total = total;
 
         await _facturaRepo.AgregarAsync(factura);
 
@@ -333,9 +400,25 @@ public class FacturaService
                                 infoCol.Item().PaddingTop(2).Text($"Descripción: {factura.Observaciones}").FontSize(9);
                             }
                             
-                            // Formas de pago
-                            if (!string.IsNullOrWhiteSpace(factura.FormaPago))
+                            // Formas de pago (múltiples)
+                            if (factura.Pagos != null && factura.Pagos.Any())
                             {
+                                infoCol.Item().PaddingTop(6).Text("Formas de pago").FontSize(10).Bold();
+                                foreach (var pago in factura.Pagos.OrderBy(p => p.Orden))
+                                {
+                                    var pagoText = $"{pago.FormaPago}: ${pago.Monto:N2}";
+                                    if (!string.IsNullOrWhiteSpace(pago.NumeroComprobante))
+                                    {
+                                        pagoText += $" (Comp: {pago.NumeroComprobante})";
+                                    }
+                                    infoCol.Item().PaddingTop(2).Text(pagoText).FontSize(9);
+                                }
+                                // Términos de pago (si aplica)
+                                infoCol.Item().Text("0 días").FontSize(9);
+                            }
+                            else if (!string.IsNullOrWhiteSpace(factura.FormaPago))
+                            {
+                                // Compatibilidad hacia atrás: mostrar FormaPago si no hay pagos
                                 infoCol.Item().PaddingTop(6).Text("Formas de pago").FontSize(10).Bold();
                                 infoCol.Item().PaddingTop(2).Text($"{factura.FormaPago}: ${factura.Total:N2}").FontSize(9);
                                 // Términos de pago (si aplica)
@@ -947,7 +1030,7 @@ RUC {emisorRuc}
 
     public async Task<FacturaConsultaDto?> ConsultarFacturaDtoAsync(int id)
     {
-        var factura = await _facturaRepo.ObtenerPorIdAsync(id);
+        var factura = await _facturaRepo.GetByIdWithDetailsAsync(id);
         if (factura == null) return null;
 
         // Calcula los totales según tus reglas de negocio
@@ -965,12 +1048,15 @@ RUC {emisorRuc}
             ClienteNombre = factura.Cliente?.NombreRazonSocial ?? "",
             Estado = factura.Estado.ToString(),
             Firmada = factura.Estado == EstadoFactura.Firmada,
+            EstadoSri = factura.EstadoSri,
+            ClaveAcceso = factura.ClaveAcceso,
             Total = factura.Total,
             Subtotal12 = subtotal12,
             Subtotal0 = subtotal0,
             DescuentoTotal = descuentoTotal,
             Iva = iva,
             IceTotal = iceTotal,
+            Observaciones = factura.Observaciones ?? "",
             Detalles = factura.Detalles.Select(d => new DetalleFacturaConsultaDto
             {
                 Cantidad = d.Cantidad,
@@ -979,7 +1065,14 @@ RUC {emisorRuc}
                 Descuento = d.Descuento,
                 Subtotal = d.Cantidad * d.PrecioUnitario - d.Descuento + d.IvaLinea,
                 DescuentoPorcentaje = 0 // Si tienes el cálculo, ponlo aquí
-            }).ToList()
+            }).ToList(),
+            Pagos = factura.Pagos?.OrderBy(p => p.Orden).Select(p => new PagoFacturaConsultaDto
+            {
+                FormaPago = p.FormaPago,
+                Monto = p.Monto,
+                NumeroComprobante = p.NumeroComprobante,
+                Orden = p.Orden
+            }).ToList() ?? new List<PagoFacturaConsultaDto>()
         };
     }
 }

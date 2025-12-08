@@ -18,6 +18,9 @@ public class Factura
 
     // Detalles
     public List<DetalleFactura> Detalles { get; set; } = new List<DetalleFactura>();
+    
+    // Pagos múltiples
+    public List<PagoFactura> Pagos { get; set; } = new List<PagoFactura>();
 
     // Totales
     public decimal Subtotal { get; set; }

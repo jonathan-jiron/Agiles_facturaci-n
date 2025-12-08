@@ -17,6 +17,7 @@ namespace Infrastructure.Data
         public DbSet<EventoActividad> EventosActividad { get; set; }
       public DbSet<Factura> Facturas { get; set; }
       public DbSet<DetalleFactura> DetallesFactura { get; set; }
+      public DbSet<PagoFactura> PagosFactura { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -148,6 +149,10 @@ namespace Infrastructure.Data
                                 .WithOne(d => d.Factura)
                                 .HasForeignKey(d => d.FacturaId)
                                 .OnDelete(DeleteBehavior.Cascade);
+                        entity.HasMany(f => f.Pagos)
+                                .WithOne(p => p.Factura)
+                                .HasForeignKey(p => p.FacturaId)
+                                .OnDelete(DeleteBehavior.Cascade);
                   });
 
                   modelBuilder.Entity<DetalleFactura>(entity =>
@@ -158,6 +163,16 @@ namespace Infrastructure.Data
                         entity.Property(d => d.IvaLinea).HasPrecision(18, 2);
                         entity.Property(d => d.Total).HasPrecision(18, 2);
                         entity.Property(d => d.Descuento).HasPrecision(18, 2); // Mejor que HasColumnType
+                  });
+
+                  // Configuración para PagoFactura
+                  modelBuilder.Entity<PagoFactura>(entity =>
+                  {
+                        entity.HasKey(p => p.Id);
+                        entity.Property(p => p.FormaPago).IsRequired().HasMaxLength(50);
+                        entity.Property(p => p.Monto).HasPrecision(18, 2).IsRequired();
+                        entity.Property(p => p.NumeroComprobante).HasMaxLength(50);
+                        entity.Property(p => p.Orden).IsRequired();
                   });
         }
 

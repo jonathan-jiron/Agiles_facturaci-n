@@ -8,10 +8,19 @@ public class FacturaCreateDto
     public DateTime Fecha { get; set; }
     public string Establecimiento { get; set; } = "";
     public string PuntoEmision { get; set; } = "";
-    public string FormaPago { get; set; } = "";
+    public string FormaPago { get; set; } = ""; // Mantener por compatibilidad hacia atrás
     public string Observaciones { get; set; } = "";
-    public string NumeroComprobante { get; set; } = ""; // <-- Agrega esta línea
+    public string NumeroComprobante { get; set; } = ""; // Mantener por compatibilidad
     public List<DetalleFacturaCreateDto> Detalles { get; set; } = new();
+    public List<PagoFacturaCreateDto> Pagos { get; set; } = new(); // Nuevo: lista de pagos múltiples
+}
+
+public class PagoFacturaCreateDto
+{
+    public string FormaPago { get; set; } = "";
+    public decimal Monto { get; set; }
+    public string? NumeroComprobante { get; set; }
+    public int Orden { get; set; }
 }
 
 public class DetalleFacturaCreateDto

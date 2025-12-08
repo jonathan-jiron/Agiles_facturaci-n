@@ -111,34 +111,88 @@
             </div>
         </div>
 
+        @if (factura.Pagos != null && factura.Pagos.Any())
+        {
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light fw-bold">
+                    Formas de Pago
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:40px;">#</th>
+                                    <th>Forma de Pago</th>
+                                    <th class="text-end">Monto</th>
+                                    @if (factura.Pagos.Any(p => !string.IsNullOrWhiteSpace(p.NumeroComprobante)))
+                                    {
+                                        <th>N° Comprobante</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var pago in factura.Pagos.OrderBy(p => p.Orden))
+                                {
+                                    <tr>
+                                        <td>@pago.Orden</td>
+                                        <td>@pago.FormaPago</td>
+                                        <td class="text-end">$@pago.Monto.ToString("N2")</td>
+                                        @if (factura.Pagos.Any(p => !string.IsNullOrWhiteSpace(p.NumeroComprobante)))
+                                        {
+                                            <td>@(pago.NumeroComprobante ?? "-")</td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr class="fw-bold">
+                                    <td colspan="@(factura.Pagos.Any(p => !string.IsNullOrWhiteSpace(p.NumeroComprobante)) ? 3 : 2)" class="text-end">Total Pagado:</td>
+                                    <td class="text-end text-success">$@factura.Pagos.Sum(p => p.Monto).ToString("N2")</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-light fw-bold">
                 Resumen
             </div>
             <div class="card-body">
-                <div class="row mb-2">
-                    <div class="col-md-6 text-end">Subtotal 12%:</div>
-                    <div class="col-md-6">$@factura.Subtotal12.ToString("N2")</div>
-                </div>
-                <div class="row mb-2">
-                    <div class="col-md-6 text-end">Subtotal 0%:</div>
-                    <div class="col-md-6">$@factura.Subtotal0.ToString("N2")</div>
-                </div>
-                <div class="row mb-2">
-                    <div class="col-md-6 text-end">Descuento:</div>
-                    <div class="col-md-6">$@factura.DescuentoTotal.ToString("N2")</div>
-                </div>
-                <div class="row mb-2">
-                    <div class="col-md-6 text-end">IVA:</div>
-                    <div class="col-md-6">$@factura.Iva.ToString("N2")</div>
-                </div>
-                <div class="row mb-2">
-                    <div class="col-md-6 text-end">ICE:</div>
-                    <div class="col-md-6">$@factura.IceTotal.ToString("N2")</div>
-                </div>
-                <div class="row mb-2 fw-bold">
-                    <div class="col-md-6 text-end">Total:</div>
-                    <div class="col-md-6 text-success">$@factura.Total.ToString("N2")</div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <h6 class="fw-bold mb-3">Observaciones</h6>
+                        <p class="text-muted">@(string.IsNullOrWhiteSpace(factura.Observaciones) ? "Sin observaciones" : factura.Observaciones)</p>
+                    </div>
+                    <div class="col-md-9">
+                        <div class="row mb-2">
+                            <div class="col-md-6 text-end">Subtotal 12%:</div>
+                            <div class="col-md-6">$@factura.Subtotal12.ToString("N2")</div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-md-6 text-end">Subtotal 0%:</div>
+                            <div class="col-md-6">$@factura.Subtotal0.ToString("N2")</div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-md-6 text-end">Descuento:</div>
+                            <div class="col-md-6">$@factura.DescuentoTotal.ToString("N2")</div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-md-6 text-end">IVA:</div>
+                            <div class="col-md-6">$@factura.Iva.ToString("N2")</div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-md-6 text-end">ICE:</div>
+                            <div class="col-md-6">$@factura.IceTotal.ToString("N2")</div>
+                        </div>
+                        <div class="row mb-2 fw-bold">
+                            <div class="col-md-6 text-end">Total:</div>
+                            <div class="col-md-6 text-success">$@factura.Total.ToString("N2")</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -147,15 +201,49 @@
             <button class="btn btn-secondary" @onclick="Volver">
                 <i class="fas fa-arrow-left me-2"></i>Volver
             </button>
-            <button class="btn btn-outline-primary" @onclick="() => DescargarPDF(Id)">
-                <i class="fas fa-file-pdf me-2"></i>Descargar PDF
-            </button>
-            <button class="btn btn-outline-info" @onclick="() => DescargarXML(Id)">
-                <i class="fas fa-file-code me-2"></i>Descargar XML
-            </button>
-            <button class="btn btn-outline-success" @onclick="() => EnviarPorEmail(Id)">
-                <i class="fas fa-envelope me-2"></i>Enviar por Correo
-            </button>
+            
+            @{
+                var estadoSriUpper = factura.EstadoSri?.ToUpperInvariant() ?? "";
+                var estadoLower = factura.Estado?.ToLowerInvariant() ?? "";
+                var estaGenerada = !factura.Firmada && string.IsNullOrWhiteSpace(factura.EstadoSri);
+                var estaFirmada = factura.Firmada || estadoSriUpper == "FIRMADA";
+                var estaAutorizada = estadoSriUpper == "AUTORIZADO";
+                var tieneClaveAcceso = !string.IsNullOrWhiteSpace(factura.ClaveAcceso);
+            }
+            
+            @if (estaGenerada)
+            {
+                <button class="btn btn-warning" @onclick="() => FirmarFactura(Id)">
+                    <i class="fas fa-signature me-2"></i>Firmar
+                </button>
+            }
+            else if (estaFirmada && !estaAutorizada)
+            {
+                <button class="btn btn-success" @onclick="() => EmitirSri(Id)">
+                    <i class="fas fa-paper-plane me-2"></i>Emitir SRI
+                </button>
+                <button class="btn btn-outline-primary" @onclick="() => DescargarPDF(Id)">
+                    <i class="fas fa-file-pdf me-2"></i>RIDE
+                </button>
+                <button class="btn btn-outline-info" @onclick="() => DescargarXML(Id)">
+                    <i class="fas fa-file-code me-2"></i>XML
+                </button>
+                <button class="btn btn-outline-success" @onclick="() => EnviarPorEmail(Id)">
+                    <i class="fas fa-envelope me-2"></i>Enviar por Correo
+                </button>
+            }
+            else if (estaAutorizada)
+            {
+                <button class="btn btn-outline-primary" @onclick="() => DescargarPDF(Id)">
+                    <i class="fas fa-file-pdf me-2"></i>RIDE
+                </button>
+                <button class="btn btn-outline-info" @onclick="() => DescargarXML(Id)">
+                    <i class="fas fa-file-code me-2"></i>XML
+                </button>
+                <button class="btn btn-outline-success" @onclick="() => EnviarPorEmail(Id)">
+                    <i class="fas fa-envelope me-2"></i>Enviar por Correo
+                </button>
+            }
         </div>
     }
 </div>
@@ -167,9 +255,15 @@
 
     protected override async Task OnInitializedAsync()
     {
+        await CargarFactura();
+    }
+
+    private async Task CargarFactura()
+    {
         cargando = true;
         factura = await FacturaService.ConsultarFacturaAsync(Id);
         cargando = false;
+        StateHasChanged();
     }
 
     private void Volver()
@@ -236,6 +330,43 @@
         {
             var errorMsg = resultado?.Error ?? "No se pudo enviar el correo.";
             NotificationService.ShowError($"Error al enviar correo: {errorMsg}");
+        }
+    }
+
+    private async Task FirmarFactura(int facturaId)
+    {
+        NotificationService.ShowInfo("Firmando factura...");
+        var resultado = await FacturaService.FirmarFacturaAsync(facturaId);
+        if (resultado != null && resultado.Exito)
+        {
+            var mensaje = $"Factura {resultado.Numero} firmada correctamente.";
+            if (!string.IsNullOrEmpty(resultado.ClaveAcceso))
+                mensaje += $"\nClave de Acceso: {resultado.ClaveAcceso}";
+            NotificationService.ShowSuccess(mensaje);
+            // Recargar la factura para actualizar el estado
+            await CargarFactura();
+        }
+        else
+        {
+            var errorMsg = resultado?.Error ?? "No se pudo firmar la factura.";
+            NotificationService.ShowError($"Error al firmar: {errorMsg}");
+        }
+    }
+
+    private async Task EmitirSri(int facturaId)
+    {
+        NotificationService.ShowInfo("Emitiendo factura al SRI...");
+        var resultado = await FacturaService.EmitirSriAsync(facturaId);
+        if (resultado != null && string.IsNullOrEmpty(resultado.Error))
+        {
+            NotificationService.ShowSuccess($"Factura emitida correctamente al SRI. Estado: {resultado.EstadoSri}");
+            // Recargar la factura para actualizar el estado
+            await CargarFactura();
+        }
+        else
+        {
+            var errorMsg = resultado?.Error ?? "No se pudo emitir la factura al SRI.";
+            NotificationService.ShowError($"Error al emitir: {errorMsg}");
         }
     }
 }
