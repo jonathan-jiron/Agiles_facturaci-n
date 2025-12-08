@@ -67,14 +67,7 @@ namespace Infrastructure.Services.Sri
                 new XElement("identificacionComprador", f.Cliente?.Identificacion ?? ""),
                 new XElement("totalSinImpuestos", totalSinImpuestos.ToString("0.00", CultureInfo.InvariantCulture)),
                 new XElement("totalDescuento", descuentoTotal.ToString("0.00", CultureInfo.InvariantCulture)),
-                new XElement("totalConImpuestos",
-                    new XElement("totalImpuesto",
-                        new XElement("codigo", "2"), // IVA
-                        new XElement("codigoPorcentaje", subtotal12 > 0 ? "4" : "0"),
-                        new XElement("baseImponible", subtotal12.ToString("0.00", CultureInfo.InvariantCulture)),
-                        new XElement("valor", iva.ToString("0.00", CultureInfo.InvariantCulture))
-                    )
-                ),
+                BuildTotalConImpuestos(subtotal12, subtotal0, iva),
                 new XElement("importeTotal", importeTotal.ToString("0.00", CultureInfo.InvariantCulture)),
                 new XElement("moneda", "DOLAR"),
                 BuildPagos(f, importeTotal)
@@ -149,6 +142,42 @@ namespace Infrastructure.Services.Sri
                     new XElement("total", importeTotal.ToString("0.00", CultureInfo.InvariantCulture))
                 )
             );
+        }
+
+        private XElement BuildTotalConImpuestos(decimal subtotal12, decimal subtotal0, decimal iva)
+        {
+            var totalesImpuestos = new List<XElement>();
+            
+            // Si hay productos con IVA (15%), agregar totalImpuesto con codigoPorcentaje=4
+            if (subtotal12 > 0 && iva > 0)
+            {
+                totalesImpuestos.Add(new XElement("totalImpuesto",
+                    new XElement("codigo", "2"), // IVA
+                    new XElement("codigoPorcentaje", "4"), // 15% IVA
+                    new XElement("baseImponible", subtotal12.ToString("0.00", CultureInfo.InvariantCulture)),
+                    new XElement("valor", iva.ToString("0.00", CultureInfo.InvariantCulture))
+                ));
+            }
+            
+            // Si hay productos sin IVA (codigoPorcentaje=0), agregar totalImpuesto con codigoPorcentaje=0
+            // Solo si hay base imponible sin IVA
+            if (subtotal0 > 0)
+            {
+                totalesImpuestos.Add(new XElement("totalImpuesto",
+                    new XElement("codigo", "2"), // IVA
+                    new XElement("codigoPorcentaje", "0"), // Sin IVA
+                    new XElement("baseImponible", subtotal0.ToString("0.00", CultureInfo.InvariantCulture)),
+                    new XElement("valor", "0.00")
+                ));
+            }
+            
+            // Si no hay ningún impuesto, retornar un elemento vacío
+            if (totalesImpuestos.Count == 0)
+            {
+                return new XElement("totalConImpuestos");
+            }
+            
+            return new XElement("totalConImpuestos", totalesImpuestos);
         }
 
         private static string MapFormaPago(string? formaPago)
