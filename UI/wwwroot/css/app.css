@@ -361,7 +361,7 @@ td[style*="position:relative"] {
 /* Contenedor de tabla de productos sin scroll horizontal */
 .productos-table-container {
     overflow-x: visible !important;
-    overflow-y: auto;
+    overflow-y: visible !important; /* Cambiado de auto a visible para que se adapte al contenido */
     position: relative;
     width: 100% !important;
     max-width: 100% !important;
@@ -410,9 +410,7 @@ td[style*="position:relative"] {
     min-width: 1100px;
 } */
 
-.table-responsive {
-    min-height: 400px;
-}
+/* Eliminado min-height para que los contenedores se adapten al contenido dinámicamente */
 
 .lote-editor-card {
     max-width: 700px;

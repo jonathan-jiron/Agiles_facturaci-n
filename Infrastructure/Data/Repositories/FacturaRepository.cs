@@ -89,6 +89,7 @@ public class FacturaRepository : IFacturaRepository
             .Include(f => f.Detalles)
                 .ThenInclude(d => d.Producto)
             .Include(f => f.Cliente)
+            .Include(f => f.Pagos.OrderBy(p => p.Orden))
             .FirstOrDefaultAsync(f => f.Id == id);
     }
 
