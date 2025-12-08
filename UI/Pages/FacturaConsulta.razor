@@ -30,11 +30,12 @@
     }
     else
     {
-        var estadoDisplay = factura.Firmada ? "Firmado" : factura.Estado;
-        var estadoBadgeClass = factura.Firmada ? "alert-success" : "alert-warning";
-        var estadoIcon = factura.Firmada ? "fa-check-circle" : "fa-clock";
+        var estadoDisplay = GetEstadoDisplay(factura.Estado, factura.EstadoSri);
+        var estadoBadgeClass = GetEstadoBadgeClass(factura.Estado, factura.EstadoSri);
+        var estadoIcon = GetEstadoIcon(factura.Estado, factura.EstadoSri);
+        var alertClass = GetEstadoAlertClass(factura.Estado, factura.EstadoSri);
         
-        <div class="alert @estadoBadgeClass mb-3">
+        <div class="alert @alertClass mb-3">
             <i class="fas @estadoIcon me-2"></i>Estado: @estadoDisplay
         </div>
 
@@ -64,7 +65,7 @@
                 <div class="row mb-2">
                     <div class="col-md-3"><strong>Estado:</strong></div>
                     <div class="col-md-3">
-                        <span class="badge @(factura.Firmada ? "bg-success" : "bg-warning")">
+                        <span class="badge @estadoBadgeClass">
                             @estadoDisplay
                         </span>
                     </div>
@@ -368,5 +369,78 @@
             var errorMsg = resultado?.Error ?? "No se pudo emitir la factura al SRI.";
             NotificationService.ShowError($"Error al emitir: {errorMsg}");
         }
+    }
+
+    private string GetEstadoBadgeClass(string? estado, string? estadoSri = null) 
+    {
+        // Solo usar estado SRI
+        if (!string.IsNullOrWhiteSpace(estadoSri))
+        {
+            return estadoSri.ToUpperInvariant() switch
+            {
+                "AUTORIZADO" => "bg-success",
+                "RECIBIDA" => "bg-info",
+                "FIRMADA" => "bg-primary",
+                "NO AUTORIZADO" => "bg-danger",
+                "RECHAZADO" => "bg-danger",
+                "DEVUELTA" => "bg-warning text-dark",
+                _ => "bg-secondary"
+            };
+        }
+        
+        // Si no hay EstadoSri, mostrar como pendiente
+        return "bg-warning text-dark";
+    }
+    
+    private string GetEstadoDisplay(string? estado, string? estadoSri = null)
+    {
+        // Solo usar estado SRI
+        if (!string.IsNullOrWhiteSpace(estadoSri))
+            return estadoSri;
+        
+        // Si no hay EstadoSri, mostrar como pendiente
+        return "PENDIENTE";
+    }
+
+    private string GetEstadoIcon(string? estado, string? estadoSri = null)
+    {
+        // Solo usar estado SRI
+        if (!string.IsNullOrWhiteSpace(estadoSri))
+        {
+            return estadoSri.ToUpperInvariant() switch
+            {
+                "AUTORIZADO" => "fa-check-circle",
+                "RECIBIDA" => "fa-inbox",
+                "FIRMADA" => "fa-signature",
+                "NO AUTORIZADO" => "fa-times-circle",
+                "RECHAZADO" => "fa-times-circle",
+                "DEVUELTA" => "fa-undo",
+                _ => "fa-clock"
+            };
+        }
+        
+        // Si no hay EstadoSri, mostrar icono de pendiente
+        return "fa-clock";
+    }
+
+    private string GetEstadoAlertClass(string? estado, string? estadoSri = null)
+    {
+        // Solo usar estado SRI
+        if (!string.IsNullOrWhiteSpace(estadoSri))
+        {
+            return estadoSri.ToUpperInvariant() switch
+            {
+                "AUTORIZADO" => "alert-success",
+                "RECIBIDA" => "alert-info",
+                "FIRMADA" => "alert-primary",
+                "NO AUTORIZADO" => "alert-danger",
+                "RECHAZADO" => "alert-danger",
+                "DEVUELTA" => "alert-warning",
+                _ => "alert-secondary"
+            };
+        }
+        
+        // Si no hay EstadoSri, mostrar como pendiente
+        return "alert-warning";
     }
 }

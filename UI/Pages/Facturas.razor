@@ -265,7 +265,7 @@
 
     private string GetEstadoBadgeClass(string? estado, string? estadoSri = null) 
     {
-        // Priorizar estado SRI si existe
+        // Solo usar estado SRI
         if (!string.IsNullOrWhiteSpace(estadoSri))
         {
             return estadoSri.ToUpperInvariant() switch
@@ -280,24 +280,18 @@
             };
         }
         
-        // Fallback al estado local
-        return estado?.ToLower() switch
-        {
-            "firmada" => "bg-success",
-            "autorizada" => "bg-success",
-            "guardada" => "bg-warning text-dark",
-            "generada" => "bg-warning text-dark",
-            "rechazada" => "bg-danger",
-            "enviada" => "bg-info",
-            _ => "bg-secondary"
-        };
+        // Si no hay EstadoSri, mostrar como pendiente
+        return "bg-warning text-dark";
     }
     
     private string GetEstadoDisplay(string? estado, string? estadoSri = null)
     {
+        // Solo usar estado SRI
         if (!string.IsNullOrWhiteSpace(estadoSri))
             return estadoSri;
-        return estado ?? "N/A";
+        
+        // Si no hay EstadoSri, mostrar como pendiente
+        return "PENDIENTE";
     }
 
     private async Task FirmarFactura(int facturaId)
